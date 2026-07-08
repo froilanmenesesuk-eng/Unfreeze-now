@@ -87,6 +87,10 @@
   .stat-label{font-size:12px; color:var(--slate); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
   .stat-value{font-size:21px; font-weight:600; font-family:var(--font-mono);}
   .stat-value.accent{color:var(--glacier);} .stat-value.good{color:var(--evergreen);} .stat-value.warn{color:var(--thaw);} .stat-value.bad{color:var(--alert);}
+  .income-hero{margin-bottom:18px;}
+  .income-total-card{padding:26px 28px; border:1px solid var(--border);}
+  .income-total-card .stat-label{font-size:13px;}
+  .income-total-card .stat-value{font-size:38px;}
 
   .headline-card{background:linear-gradient(135deg, var(--ink) 0%, #223447 100%); color:#fff; border-radius:var(--radius-lg); padding:28px 30px; margin-bottom:22px;}
   .headline-card .eyebrow{font-size:12.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:10px;}
@@ -207,6 +211,7 @@
     <div class="brand-sub">Debt &amp; budget planner</div>
     <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">◆</span>Dashboard</button>
     <button class="nav-btn" data-view="debts"><span class="nav-icon">▤</span>Debts</button>
+    <button class="nav-btn" data-view="income"><span class="nav-icon">◒</span>Income</button>
     <button class="nav-btn" data-view="budget"><span class="nav-icon">◈</span>Budget</button>
     <button class="nav-btn" data-view="plan"><span class="nav-icon">↘</span>Payoff Plan</button>
     <div class="plan-badge" id="plan-badge"></div>
@@ -251,18 +256,30 @@
       </div>
     </section>
 
+    <section id="view-income" class="view">
+      <div class="locked-wrap" id="income-locked-wrap">
+      <div class="income-hero">
+        <div class="stat-card income-total-card">
+          <div class="stat-label">Total monthly income</div>
+          <div class="stat-value accent" id="income-total-value">£0.00</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Income sources</div>
+        <form id="add-income-form" class="inline-form">
+          <input name="source" placeholder="Source (e.g. Salary, Freelance)" required>
+          <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
+          <button class="btn btn-primary" type="submit">Add income</button>
+        </form>
+        <div id="income-table-wrap" class="table-wrap"></div>
+      </div>
+      <div class="locked-overlay" id="income-overlay" style="display:none;"></div>
+      </div>
+    </section>
+
     <section id="view-budget" class="view">
       <div class="locked-wrap" id="budget-locked-wrap">
-      <div class="three-col">
-        <div class="card">
-          <div class="section-title">Income</div>
-          <form id="add-income-form" class="inline-form">
-            <input name="source" placeholder="Source" required>
-            <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
-            <button class="btn btn-primary" type="submit">Add</button>
-          </form>
-          <div id="income-table-wrap" class="table-wrap"></div>
-        </div>
+      <div class="two-col">
         <div class="card">
           <div class="section-title">Expenses &amp; subscriptions</div>
           <form id="add-expense-form" class="inline-form">
@@ -367,15 +384,17 @@ function renderSidebarBadge(){
 }
 
 function applyBudgetLock(){
-  const overlay = document.getElementById('budget-overlay');
-  if(!overlay) return;
-  if(isUnlocked()){
-    overlay.style.display = 'none';
-    overlay.innerHTML = '';
-  } else {
-    overlay.style.display = 'flex';
-    overlay.innerHTML = paywallCardHTML();
-  }
+  ['budget-overlay','income-overlay'].forEach(id=>{
+    const overlay = document.getElementById(id);
+    if(!overlay) return;
+    if(isUnlocked()){
+      overlay.style.display = 'none';
+      overlay.innerHTML = '';
+    } else {
+      overlay.style.display = 'flex';
+      overlay.innerHTML = paywallCardHTML();
+    }
+  });
 }
 
 let paymentBanner = null; // {type:'verifying'|'success'|'error', message}
@@ -522,7 +541,8 @@ document.querySelectorAll('.nav-btn').forEach(btn=>btn.addEventListener('click',
 const titles = {
   dashboard:['Dashboard','Your full debt & budget picture, at a glance.'],
   debts:['Debts','Every balance you owe, in one place.'],
-  budget:['Budget','Income, expenses, subscriptions, and savings.'],
+  income:['Income','Every pound coming in, tracked in one place.'],
+  budget:['Budget','Expenses, subscriptions, and savings.'],
   plan:['Payoff Plan','See exactly when you will be debt-free.']
 };
 function switchView(view){
@@ -565,8 +585,11 @@ document.getElementById('add-debt-form').addEventListener('submit', e=>{
   f.reset(); saveData(); renderAll();
 });
 
-/* ==================== BUDGET: INCOME / EXPENSES / SAVINGS ==================== */
-function renderBudget(){
+/* ==================== INCOME ==================== */
+function renderIncome(){
+  const totalEl = document.getElementById('income-total-value');
+  if(totalEl) totalEl.textContent = fmtMoney(totalIncome());
+
   const iwrap = document.getElementById('income-table-wrap');
   if(STATE.incomes.length===0){
     iwrap.innerHTML = `<div class="empty-state"><h3>No income yet</h3><p>Add a source to see your monthly cash flow.</p></div>`;
@@ -585,7 +608,10 @@ function renderBudget(){
       STATE.incomes = STATE.incomes.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
     }));
   }
+}
 
+/* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
+function renderBudget(){
   const ewrap = document.getElementById('expense-table-wrap');
   if(STATE.expenses.length===0){
     ewrap.innerHTML = `<div class="empty-state"><h3>Nothing tracked</h3><p>Add bills and subscriptions so your budget reflects real life.</p></div>`;
@@ -871,6 +897,7 @@ function renderPlan(){
   const avalanche = strat==='avalanche' ? result : computeSchedule(STATE.debts, extra, 'avalanche');
   const snowball = strat==='snowball' ? result : computeSchedule(STATE.debts, extra, 'snowball');
   const orderRows = result.order.map((d,i)=>`<li><span class="order-badge">${i+1}</span><span class="order-name">${escAttr(d.name)}</span><span class="order-meta">${fmtMoney(d.balance)} · ${d.apr}% APR</span></li>`).join('');
+  const ordersMatch = avalanche.order.length===snowball.order.length && avalanche.order.every((d,i)=>d.id===snowball.order[i].id);
   const visibleMonths = showFullSchedule ? result.schedule : result.schedule.slice(0,24);
   const today = new Date();
   const rows = visibleMonths.map(m=>{
@@ -895,6 +922,7 @@ function renderPlan(){
           <button class="${strat==='snowball'?'active-snowball':''}" data-strat="snowball">Snowball (smallest balance first)</button>
         </div>
       </div>
+      ${ordersMatch ? `<p class="mode-note" style="margin-top:12px;">Avalanche and Snowball land on the same attack order and payoff date with your current debts — your highest-APR debt is also your smallest balance, so both methods agree. Switching won't change the numbers below, but you can still pick either.</p>` : ''}
       <div style="margin-top:16px;">
         ${mode==='auto' ? `
           <p class="mode-note">Extra payment is <strong>${fmtMoney(extra)} / mo</strong>, based on your Budget split. <a href="#" id="switch-manual">Set a custom amount instead</a> or adjust the slider on the Dashboard.</p>
@@ -994,6 +1022,7 @@ document.getElementById('reset-btn').addEventListener('click', ()=>{
 /* ==================== MASTER RENDER ==================== */
 function renderAll(){
   renderDebts();
+  renderIncome();
   renderBudget();
   applyBudgetLock();
   renderDashboard();
