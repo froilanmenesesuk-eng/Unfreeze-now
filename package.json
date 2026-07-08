@@ -1,0 +1,9 @@
+{
+  "name": "unfreeze-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unfreeze - debt & budget planner with a one-time paid unlock",
+  "dependencies": {
+    "stripe": "^16.0.0"
+  }
+}
