@@ -52,6 +52,7 @@
   #app{display:flex; min-height:100vh;}
 
   .sidebar{width:230px; flex-shrink:0; background:var(--ink); color:#EAF1F6; display:flex; flex-direction:column; padding:28px 18px;}
+  .nav-row{display:flex; flex-direction:column;}
   .brand{font-family:var(--font-display); font-size:25px; font-weight:600; letter-spacing:0.01em; margin-bottom:2px; display:flex; align-items:center; gap:8px;}
   .brand-dot{width:10px;height:10px;border-radius:50%;background:var(--thaw); display:inline-block;}
   .brand-sub{font-size:12px; color:#8FA3B5; margin-bottom:32px; letter-spacing:0.03em;}
@@ -105,6 +106,41 @@
   .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start;}
   .three-col{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start;}
   @media (max-width:920px){ .two-col{grid-template-columns:1fr;} .three-col{grid-template-columns:1fr;} }
+
+  @media (max-width:760px){
+    #app{flex-direction:column;}
+    .sidebar{
+      width:100%; flex-direction:row; align-items:center; flex-shrink:0;
+      padding:12px 14px; gap:12px;
+    }
+    .sidebar-top{flex-shrink:0;}
+    .brand{font-size:19px; margin-bottom:0;}
+    .brand-sub, .plan-badge, .sidebar-footer{display:none;}
+    .nav-row{
+      flex-direction:row; flex:1; min-width:0; gap:4px;
+      overflow-x:auto; -webkit-overflow-scrolling:touch;
+    }
+    .nav-btn{
+      width:auto; flex-shrink:0; white-space:nowrap;
+      padding:8px 11px; font-size:13px; margin-bottom:0;
+    }
+    .nav-icon{font-size:14px; width:auto;}
+
+    main{padding:18px 16px 40px;}
+    .topbar{margin-bottom:18px;}
+    .topbar h1{font-size:23px;}
+    .topbar p{font-size:13px;}
+    .top-actions{gap:6px;}
+    .top-actions .btn, .top-actions .sel{padding:7px 11px; font-size:12.5px;}
+
+    .headline-card{padding:22px 20px;}
+    .headline-card h2{font-size:24px;}
+    .income-total-card{padding:20px 22px;}
+    .income-total-card .stat-value{font-size:28px;}
+
+    .card{padding:18px 16px;}
+    .inline-form input, .inline-form select{min-width:0; flex:1 1 46%;}
+  }
 
   .empty-state{text-align:center; padding:50px 20px; color:var(--slate);}
   .empty-state h3{font-family:var(--font-display); color:var(--ink); font-size:20px; margin-bottom:6px;}
@@ -220,13 +256,17 @@
 <body>
 <div id="app">
   <aside class="sidebar">
-    <div class="brand"><span class="brand-dot"></span>Unfreeze</div>
-    <div class="brand-sub">Debt &amp; budget planner</div>
-    <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">◆</span>Dashboard</button>
-    <button class="nav-btn" data-view="debts"><span class="nav-icon">▤</span>Debts</button>
-    <button class="nav-btn" data-view="income"><span class="nav-icon">◒</span>Income</button>
-    <button class="nav-btn" data-view="budget"><span class="nav-icon">◈</span>Budget</button>
-    <button class="nav-btn" data-view="plan"><span class="nav-icon">↘</span>Payoff Plan</button>
+    <div class="sidebar-top">
+      <div class="brand"><span class="brand-dot"></span>Unfreeze</div>
+      <div class="brand-sub">Debt &amp; budget planner</div>
+    </div>
+    <nav class="nav-row">
+      <button class="nav-btn active" data-view="dashboard"><span class="nav-icon">◆</span>Dashboard</button>
+      <button class="nav-btn" data-view="debts"><span class="nav-icon">▤</span>Debts</button>
+      <button class="nav-btn" data-view="income"><span class="nav-icon">◒</span>Income</button>
+      <button class="nav-btn" data-view="budget"><span class="nav-icon">◈</span>Budget</button>
+      <button class="nav-btn" data-view="plan"><span class="nav-icon">↘</span>Payoff Plan</button>
+    </nav>
     <div class="plan-badge" id="plan-badge"></div>
     <div class="sidebar-footer">
       <strong>Your data stays on this device.</strong><br>
