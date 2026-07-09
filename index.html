@@ -92,10 +92,14 @@
   .income-total-card .stat-label{font-size:13px;}
   .income-total-card .stat-value{font-size:38px;}
 
-  .headline-card{background:linear-gradient(135deg, var(--ink) 0%, #223447 100%); color:#fff; border-radius:var(--radius-lg); padding:28px 30px; margin-bottom:22px;}
+  .headline-card{position:relative; overflow:hidden; background:linear-gradient(135deg, var(--ink) 0%, #223447 100%); color:#fff; border-radius:var(--radius-lg); padding:28px 30px; margin-bottom:22px;}
+  .headline-card .snow-canvas{position:absolute; inset:0; width:100%; height:100%; z-index:0;}
+  .headline-card .headline-content{position:relative; z-index:1;}
   .headline-card .eyebrow{font-size:12.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:10px;}
   .headline-card h2{font-family:var(--font-display); font-size:33px; margin:0 0 6px; font-weight:600;}
   .headline-card p{color:#C7D6E1; margin:0; font-size:14.5px;}
+  .donut-card{display:flex; flex-direction:column;}
+  .donut-empty{color:var(--slate); font-size:13px; margin:0;}
 
   .section-title{font-family:var(--font-display); font-size:19px; font-weight:600; margin:0 0 14px;}
   .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start;}
@@ -258,10 +262,16 @@
 
     <section id="view-income" class="view">
       <div class="locked-wrap" id="income-locked-wrap">
-      <div class="income-hero">
+      <div class="income-hero two-col">
         <div class="stat-card income-total-card">
           <div class="stat-label">Total monthly income</div>
           <div class="stat-value accent" id="income-total-value">£0.00</div>
+        </div>
+        <div class="card donut-card">
+          <div class="section-title">By source</div>
+          <div id="income-donut-wrap">
+            <canvas id="incomeDonut" height="170"></canvas>
+          </div>
         </div>
       </div>
       <div class="card">
@@ -293,6 +303,9 @@
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="expense-table-wrap" class="table-wrap"></div>
+          <div id="expense-donut-wrap" style="margin-top:16px;">
+            <canvas id="expenseDonut" height="170"></canvas>
+          </div>
         </div>
         <div class="card">
           <div class="section-title">Savings accounts</div>
@@ -608,6 +621,46 @@ function renderIncome(){
       STATE.incomes = STATE.incomes.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
     }));
   }
+  renderIncomeDonut();
+}
+
+const DONUT_PALETTE = ['#4C7EA8','#E8963D','#2F6B4F','#8E7CC3','#C0533E','#7C8B99'];
+const genericDonutInstances = {};
+function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data){
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  if(!labels.length || data.every(v=>v<=0)){
+    if(genericDonutInstances[canvasId]){ genericDonutInstances[canvasId].destroy(); delete genericDonutInstances[canvasId]; }
+    wrap.innerHTML = `<p class="donut-empty">${emptyMsg}</p>`;
+    return;
+  }
+  if(!document.getElementById(canvasId)){
+    wrap.innerHTML = `<canvas id="${canvasId}" height="170"></canvas>`;
+  }
+  const ctx = document.getElementById(canvasId);
+  if(!ctx || typeof Chart==='undefined') return;
+  if(genericDonutInstances[canvasId]) genericDonutInstances[canvasId].destroy();
+  genericDonutInstances[canvasId] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor: labels.map((_,i)=>DONUT_PALETTE[i%DONUT_PALETTE.length]), borderColor:'#fff', borderWidth:2 }] },
+    options:{
+      responsive:true, cutout:'62%',
+      plugins:{
+        legend:{position:'bottom', labels:{boxWidth:11, font:{family:'Inter', size:11.5}}},
+        tooltip:{callbacks:{label:(c)=>`${c.label}: ${fmtMoney(c.parsed)}`}}
+      }
+    }
+  });
+}
+function renderIncomeDonut(){
+  renderGenericDonut('incomeDonut','income-donut-wrap','Add income sources to see the breakdown.',
+    STATE.incomes.map(i=>i.source||'Untitled'), STATE.incomes.map(i=>Number(i.amount)||0));
+}
+function renderExpenseDonut(){
+  const byCategory = {};
+  STATE.expenses.forEach(x=>{ byCategory[x.category] = (byCategory[x.category]||0) + (Number(x.amount)||0); });
+  const labels = Object.keys(byCategory).map(c=>c.charAt(0).toUpperCase()+c.slice(1));
+  renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory));
 }
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
@@ -650,6 +703,7 @@ function renderBudget(){
       STATE.savings = STATE.savings.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
     }));
   }
+  renderExpenseDonut();
 }
 document.getElementById('add-income-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
@@ -735,9 +789,12 @@ function renderDashboard(){
   el.innerHTML = `
     ${bannerHTML}
     <div class="headline-card">
-      <div class="eyebrow">Projected debt-free date · ${strat==='avalanche'?'Avalanche':'Snowball'} method</div>
-      <h2>${current.maxedOut ? 'Add more to your budget to see a payoff date' : fmtMonthYear(debtFreeDate)}</h2>
-      <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
+      <canvas class="snow-canvas" id="snowCanvas"></canvas>
+      <div class="headline-content">
+        <div class="eyebrow">Projected debt-free date · ${strat==='avalanche'?'Avalanche':'Snowball'} method</div>
+        <h2>${current.maxedOut ? 'Add more to your budget to see a payoff date' : fmtMonthYear(debtFreeDate)}</h2>
+        <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
+      </div>
     </div>
 
     ${basicStats}
@@ -785,6 +842,7 @@ function renderDashboard(){
   renderSplitDoughnut(minPay, expenses, extra, toSavings);
   renderDebtBarChart();
   renderInterestCompareChart('dashCompareChart', avalanche, snowball);
+  startSnowfall(document.getElementById('snowCanvas'));
 
   const slider = document.getElementById('split-slider');
   if(slider){
@@ -824,6 +882,36 @@ function renderMeltChart(result, debtFreeDate, totalDebt){
     <text x="${Math.max(coords[coords.length-1][0]-90,0)}" y="${padTop+plotH+22}" font-family="Inter, sans-serif" font-size="12" font-weight="600" fill="#2F6B4F">🏁 Debt-free — ${fmtMonthYear(debtFreeDate)}</text>
   </svg>`;
 }
+
+let snowAnimId = null;
+function startSnowfall(canvas){
+  if(snowAnimId){ cancelAnimationFrame(snowAnimId); snowAnimId = null; }
+  if(!canvas || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth; canvas.height = canvas.offsetHeight;
+  if(!canvas.width || !canvas.height) return;
+  const flakes = Array.from({length:34}, ()=>({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    r: Math.random()*1.8+0.8, speed: Math.random()*0.35+0.15, drift: Math.random()*0.5-0.25,
+    alpha: Math.random()*0.5+0.35
+  }));
+  function frame(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    flakes.forEach(f=>{
+      f.y += f.speed; f.x += f.drift;
+      if(f.y > canvas.height){ f.y = -4; f.x = Math.random()*canvas.width; }
+      if(f.x > canvas.width) f.x = 0; else if(f.x < 0) f.x = canvas.width;
+      ctx.beginPath(); ctx.arc(f.x, f.y, f.r, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,255,255,${f.alpha})`; ctx.fill();
+    });
+    snowAnimId = requestAnimationFrame(frame);
+  }
+  frame();
+}
+window.addEventListener('resize', ()=>{
+  const c = document.getElementById('snowCanvas');
+  if(c){ c.width = c.offsetWidth; c.height = c.offsetHeight; }
+});
 
 let splitDoughnutInstance = null;
 function renderSplitDoughnut(minPay, expenses, extra, toSavings){
