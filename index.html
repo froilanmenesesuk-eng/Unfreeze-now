@@ -204,6 +204,15 @@
   .unlock-btn:hover{background:#3E6C90;}
   .paywall-card.compact{padding:22px 24px; max-width:none; text-align:left;}
   .paywall-card.compact .lock-icon{font-size:20px;}
+  .restore-link{display:block; width:100%; background:none; border:none; color:var(--slate); font-size:12.5px; text-decoration:underline; margin-top:12px; padding:0;}
+  .restore-link:hover{color:var(--glacier);}
+
+  .modal-backdrop{position:fixed; inset:0; background:rgba(27,40,56,0.55); display:flex; align-items:center; justify-content:center; z-index:1000; padding:20px;}
+  .modal-card{max-width:380px; width:100%; box-shadow:0 12px 40px rgba(27,40,56,0.25);}
+  .modal-card input[type=email]{border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; font-size:13.5px;}
+  .modal-card input[type=email]:focus{border-color:var(--glacier);}
+  #restore-status.error{color:var(--alert);}
+  #restore-status.success{color:var(--evergreen);}
   .verifying-banner{background:var(--glacier-soft); color:var(--glacier); border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:14px;}
   .unlocked-banner{background:var(--evergreen-soft); color:var(--evergreen); border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:14px;}
 </style>
@@ -327,6 +336,21 @@
   </main>
 </div>
 
+<div class="modal-backdrop" id="restore-modal-backdrop" style="display:none;">
+  <div class="card modal-card">
+    <div class="section-title">Restore your purchase</div>
+    <p class="mode-note" style="margin-top:-6px;">Enter the email address you used at checkout — we'll check with Stripe and unlock this browser if it matches a completed payment.</p>
+    <form id="restore-form">
+      <input type="email" id="restore-email-input" placeholder="you@example.com" required style="width:100%; margin-bottom:10px;">
+      <div id="restore-status" class="mode-note" style="min-height:18px;"></div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="submit" class="btn btn-primary" id="restore-submit-btn">Check &amp; restore</button>
+        <button type="button" class="btn" id="restore-cancel-btn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 /* ==================== DATA LAYER ==================== */
 const LS_KEY = 'unfreeze_planner_v1';
@@ -383,6 +407,7 @@ function paywallCardHTML({compact=false} = {}){
       <p>Budgeting, avalanche &amp; snowball payoff plans, and every chart on your dashboard are part of the full version.</p>
       <div class="price">£8 <small>one-time — not a subscription</small></div>
       <a class="unlock-btn" href="${STRIPE_PAYMENT_LINK}">Unlock for £8 →</a>
+      <button type="button" class="restore-link" data-action="restore-purchase">Already paid? Restore purchase</button>
     </div>`;
 }
 
@@ -437,6 +462,57 @@ async function checkForReturningPayment(){
   renderAll();
 }
 
+/* ==================== RESTORE PURCHASE ==================== */
+function openRestoreModal(){
+  const backdrop = document.getElementById('restore-modal-backdrop');
+  const status = document.getElementById('restore-status');
+  status.textContent = '';
+  status.className = 'mode-note';
+  backdrop.style.display = 'flex';
+  document.getElementById('restore-email-input').focus();
+}
+function closeRestoreModal(){
+  document.getElementById('restore-modal-backdrop').style.display = 'none';
+}
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('[data-action="restore-purchase"]');
+  if(btn){ e.preventDefault(); openRestoreModal(); return; }
+  if(e.target.id === 'restore-cancel-btn'){ closeRestoreModal(); return; }
+  if(e.target.id === 'restore-modal-backdrop'){ closeRestoreModal(); return; }
+});
+document.getElementById('restore-form').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('restore-email-input').value.trim();
+  const status = document.getElementById('restore-status');
+  const submitBtn = document.getElementById('restore-submit-btn');
+  if(!email) return;
+  submitBtn.disabled = true;
+  status.className = 'mode-note';
+  status.textContent = 'Checking with Stripe…';
+  try{
+    const res = await fetch(`/api/restore-purchase?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if(data.paid){
+      STATE.settings.unlocked = true;
+      saveData();
+      status.className = 'mode-note success';
+      status.textContent = 'Payment found — unlocking…';
+      setTimeout(()=>{
+        closeRestoreModal();
+        paymentBanner = {type:'success', message:'Purchase restored — full access unlocked on this device.'};
+        renderAll();
+      }, 700);
+    } else {
+      status.className = 'mode-note error';
+      status.textContent = "No completed payment found for that email. Double-check the email you used at checkout.";
+    }
+  }catch(err){
+    console.error(err);
+    status.className = 'mode-note error';
+    status.textContent = 'Could not reach the restore service right now. Please try again in a moment.';
+  }
+  submitBtn.disabled = false;
+});
 
 /* ==================== BUDGET MATH ==================== */
 function totalIncome(){ return STATE.incomes.reduce((s,i)=>s+Number(i.amount||0),0); }
