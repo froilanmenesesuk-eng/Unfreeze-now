@@ -1657,7 +1657,7 @@ function renderDashboard(){
             <span style="color:var(--thaw)">${fmtMoney(toSavings)} / mo to savings</span>
           </div>
         </div>
-        <p class="mode-note">${STATE.settings.paymentMode==='manual' ? "You're using a custom extra-payment amount set on the Payoff Plan tab." : 'This slider only moves your leftover money — your minimum payments and expenses are always covered first.'}</p>
+        <p class="mode-note">${STATE.settings.paymentMode==='manual' ? "You're using a custom extra-payment amount, so this slider is off. <a href=\"#\" id=\"dash-switch-auto\">Use this slider instead</a>" : 'This slider only moves your leftover money — your minimum payments and expenses are always covered first.'}</p>
         <canvas id="splitDoughnut" height="170" style="margin-top:14px;"></canvas>
       </div>
       <div class="card">
@@ -1707,6 +1707,12 @@ function renderDashboard(){
       saveData(); renderAll();
     });
   }
+  const dashSwitchAuto = document.getElementById('dash-switch-auto');
+  if(dashSwitchAuto) dashSwitchAuto.addEventListener('click', e=>{
+    e.preventDefault();
+    STATE.settings.paymentMode = 'auto';
+    saveData(); renderAll();
+  });
 }
 
 function renderMeltChart(result, debtFreeDate, totalDebt){
