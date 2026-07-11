@@ -168,6 +168,10 @@
   .link-btn:hover{color:#3E6C90;}
   .tag-input{border:1px solid transparent; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; text-align:center;}
   .tag-input:hover, .tag-input:focus{border-color:currentColor;}
+  .category-group-row td{background:var(--frost); padding:8px 10px; border-bottom:1px solid var(--border);}
+  .category-group-row .group-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle;}
+  .category-group-row .group-name{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--slate);}
+  .category-group-row .group-total{float:right; font-family:var(--font-mono); font-size:12.5px; font-weight:600; color:var(--ink);}
 
   .strategy-toggle{display:inline-flex; border:1px solid var(--border); border-radius:999px; padding:3px; background:var(--paper);}
   .strategy-toggle button{border:none; background:transparent; padding:8px 16px; border-radius:999px; font-size:13px; font-weight:600; color:var(--slate);}
@@ -177,8 +181,12 @@
   .field-inline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--slate); font-weight:600;}
   .field-inline input{width:110px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-family:var(--font-mono); font-size:13.5px; color:var(--ink);}
   .variable-check{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--slate); font-weight:500;}
-  .savings-controls{display:flex; gap:6px; margin-top:6px;}
-  .savings-controls input{flex:1; min-width:0; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink);}
+  .savings-controls{display:flex; gap:8px; margin-top:6px;}
+  .control-field{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+  .control-label{font-size:10px; color:var(--slate); text-transform:uppercase; letter-spacing:.03em; font-weight:600;}
+  .control-field input{width:100%; min-width:0; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink);}
+  .savings-summary-line{font-size:13.5px; color:var(--slate); margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border);}
+  .summary-total{font-family:var(--font-mono); font-size:21px; font-weight:700; color:var(--ink); margin-right:6px;}
   .goal-progress{margin-top:8px;}
   .goal-bar{height:6px; background:var(--border); border-radius:999px; overflow:hidden;}
   .goal-fill{height:100%; background:var(--evergreen); border-radius:999px; transition:width .2s ease;}
@@ -372,7 +380,7 @@
       <div class="locked-wrap" id="budget-locked-wrap">
       <div class="two-col">
         <div class="card">
-          <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly — bills, subscriptions, or a category you make up yourself. Type any category name; it doesn't have to match a preset list.">?</span></div>
+          <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly. Type any category name — it doesn't have to match a preset list, and Unfreeze groups your list by category automatically, biggest spend first.">?</span></div>
           <form id="add-expense-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
@@ -396,7 +404,8 @@
           </div>
         </div>
         <div class="card">
-          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Use the + contribute field to add money without recalculating the total yourself, and set an optional goal to see your progress.">?</span></div>
+          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Use the Adjust field to add or subtract money (e.g. 50 or -50) without recalculating the total yourself, and set an optional Goal to see your progress.">?</span></div>
+          <div id="savings-summary"></div>
           <form id="add-savings-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="balance" type="number" step="0.01" min="0" placeholder="Current balance" required>
@@ -978,7 +987,7 @@ function generateFinancialInsights(){
 
   if(STATE.expenses.length){
     const byCategory = {};
-    STATE.expenses.forEach(x=>{ const c=x.category||'Other'; byCategory[c]=(byCategory[c]||0)+(Number(x.amount)||0); });
+    STATE.expenses.forEach(x=>{ const c=normalizeCategory(x.category); byCategory[c]=(byCategory[c]||0)+(Number(x.amount)||0); });
     const [topCat, topAmt] = Object.entries(byCategory).sort((a,b)=>b[1]-a[1])[0];
     const pctOfExpenses = expenses>0 ? Math.round(topAmt/expenses*100) : 0;
     insights.push(`${escAttr(topCat)} is your biggest expense category at ${fmtMoney(topAmt)}/mo (${pctOfExpenses}% of tracked expenses).`);
@@ -1274,6 +1283,11 @@ function renderIncome(){
 }
 
 const DONUT_PALETTE = ['#4C7EA8','#E8963D','#2F6B4F','#8E7CC3','#C0533E','#7C8B99'];
+function normalizeCategory(str){
+  const trimmed = String(str||'').trim();
+  if(!trimmed) return 'Other';
+  return trimmed.toLowerCase().replace(/\b\w/g, c=>c.toUpperCase());
+}
 function hashColor(str){
   let hash = 0;
   for(let i=0;i<str.length;i++){ hash = (hash*31 + str.charCodeAt(i)) | 0; }
@@ -1312,7 +1326,7 @@ function renderIncomeDonut(){
 }
 function renderExpenseDonut(){
   const byCategory = {};
-  STATE.expenses.forEach(x=>{ const cat=x.category||'Other'; byCategory[cat] = (byCategory[cat]||0) + (Number(x.amount)||0); });
+  STATE.expenses.forEach(x=>{ const cat=normalizeCategory(x.category); byCategory[cat] = (byCategory[cat]||0) + (Number(x.amount)||0); });
   const labels = Object.keys(byCategory);
   renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory), labels.map(hashColor));
 }
@@ -1323,20 +1337,58 @@ function renderBudget(){
   if(STATE.expenses.length===0){
     ewrap.innerHTML = `<div class="empty-state"><h3>Nothing tracked</h3><p>Add bills and subscriptions so your budget reflects real life.</p></div>`;
   } else {
-    ewrap.innerHTML = `<table><thead><tr><th>Name</th><th>£ / mo</th><th>Category</th><th></th></tr></thead><tbody>${
-      STATE.expenses.map(x=>{ const c = hashColor(x.category||'Other'); return `<tr data-id="${x.id}">
+    const groups = {};
+    STATE.expenses.forEach(x=>{ const cat = normalizeCategory(x.category); (groups[cat] = groups[cat]||[]).push(x); });
+    const sortedCats = Object.keys(groups).sort((a,b)=>{
+      const totalA = groups[a].reduce((s,x)=>s+Number(x.amount||0),0);
+      const totalB = groups[b].reduce((s,x)=>s+Number(x.amount||0),0);
+      return totalB - totalA;
+    });
+    const bodyRows = sortedCats.map(cat=>{
+      const items = groups[cat];
+      const subtotal = items.reduce((s,x)=>s+Number(x.amount||0),0);
+      const color = hashColor(cat);
+      const headerRow = `<tr class="category-group-row"><td colspan="4">
+        <span class="group-dot" style="background:${color};"></span>
+        <span class="group-name">${escAttr(cat)}</span>
+        <span class="group-total">${fmtMoney(subtotal)}/mo</span>
+      </td></tr>`;
+      const itemRows = items.map(x=>`<tr data-id="${x.id}">
         <td><input class="cell-input text-cell" data-field="name" value="${escAttr(x.name)}"></td>
         <td><input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${x.amount}"></td>
-        <td><input class="cell-input tag-input" data-field="category" list="expense-category-suggestions" value="${escAttr(x.category)}" style="background:${c}22; color:${c};"></td>
+        <td><input class="cell-input tag-input" data-field="category" list="expense-category-suggestions" value="${escAttr(x.category)}" style="background:${color}22; color:${color};"></td>
         <td><button class="row-delete" data-del="${x.id}">✕</button></td>
-      </tr>`; }).join('')}</tbody></table>`;
+      </tr>`).join('');
+      return headerRow + itemRows;
+    }).join('');
+    ewrap.innerHTML = `<table><thead><tr><th>Name</th><th>£ / mo</th><th>Category</th><th></th></tr></thead><tbody>${bodyRows}</tbody></table>`;
     ewrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.expenses.find(x=>x.id===id); const field=inp.dataset.field;
-      item[field] = (field==='name'||field==='category') ? inp.value : Number(inp.value)||0; saveData(); renderAll();
+      if(field==='category') item[field] = normalizeCategory(inp.value);
+      else item[field] = field==='name' ? inp.value : Number(inp.value)||0;
+      saveData(); renderAll();
     }));
     ewrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.expenses = STATE.expenses.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
     }));
+  }
+
+  const summaryEl = document.getElementById('savings-summary');
+  if(summaryEl){
+    if(STATE.savings.length===0){
+      summaryEl.innerHTML = '';
+    } else {
+      const total = totalSavingsBalance();
+      const goalsSet = STATE.savings.filter(s=>s.goal>0);
+      let goalNote = '';
+      if(goalsSet.length){
+        const totalGoal = goalsSet.reduce((s,x)=>s+Number(x.goal||0),0);
+        const totalTowardGoals = goalsSet.reduce((s,x)=>s+Math.min(Number(x.balance)||0, Number(x.goal)||0),0);
+        const pct = totalGoal>0 ? Math.round(totalTowardGoals/totalGoal*100) : 0;
+        goalNote = ` · ${pct}% of your combined goals`;
+      }
+      summaryEl.innerHTML = `<div class="savings-summary-line"><span class="summary-total">${fmtMoney(total)}</span> saved across ${STATE.savings.length} account${STATE.savings.length===1?'':'s'}${goalNote}</div>`;
+    }
   }
 
   const swrap = document.getElementById('savings-table-wrap');
@@ -1360,8 +1412,14 @@ function renderBudget(){
           <input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${s.balance}">
           ${goalHtml}
           <div class="savings-controls">
-            <input type="number" step="0.01" placeholder="+ contribute" data-quickadd="${s.id}">
-            <input type="number" step="0.01" min="0" placeholder="Goal (optional)" data-goalfield="${s.id}" value="${s.goal||''}">
+            <div class="control-field">
+              <span class="control-label">Adjust</span>
+              <input type="number" step="0.01" placeholder="± amount" data-quickadd="${s.id}">
+            </div>
+            <div class="control-field">
+              <span class="control-label">Goal</span>
+              <input type="number" step="0.01" min="0" placeholder="Optional" data-goalfield="${s.id}" value="${s.goal||''}">
+            </div>
           </div>
         </td>
         <td><button class="row-delete" data-del="${s.id}">✕</button></td>
@@ -1398,7 +1456,7 @@ document.getElementById('add-income-form').addEventListener('submit', e=>{
 });
 document.getElementById('add-expense-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:f.category.value.trim()||'Other'});
+  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:normalizeCategory(f.category.value)});
   f.reset(); saveData(); renderAll();
 });
 document.getElementById('add-savings-form').addEventListener('submit', e=>{
