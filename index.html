@@ -161,6 +161,8 @@
   .row-delete{background:transparent; border:none; color:var(--slate); font-size:16px; padding:4px 8px; border-radius:var(--radius-sm);}
   .row-delete:hover{color:var(--alert); background:var(--alert-soft);}
   .table-wrap{overflow-x:auto;}
+  .chart-frame{position:relative; width:100%;}
+  .chart-frame canvas{position:absolute; inset:0; width:100% !important; height:100% !important;}
   .rate-change-note{font-size:11.5px; color:var(--slate); margin-top:3px; white-space:nowrap;}
   .link-btn{background:none; border:none; padding:0; color:var(--glacier); font-size:11.5px; text-decoration:underline; cursor:pointer;}
   .link-btn:hover{color:#3E6C90;}
@@ -1270,7 +1272,9 @@ function renderPlan(){
     <div class="two-col" style="margin-bottom:18px;">
       <div class="card">
         <div class="section-title">Balance over time</div>
-        <canvas id="planChart" height="140"></canvas>
+        <div class="chart-frame" style="height:240px;">
+          <canvas id="planChart"></canvas>
+        </div>
       </div>
       <div class="card">
         <div class="section-title">Attack order</div>
@@ -1316,7 +1320,7 @@ function renderPlanChart(avalanche, snowball){
       {label:'Avalanche', data:avData, borderColor:'#4C7EA8', backgroundColor:'rgba(76,126,168,0.08)', borderWidth:2, pointRadius:0, tension:0.15, fill:true},
       {label:'Snowball', data:snData, borderColor:'#E8963D', backgroundColor:'rgba(232,150,61,0.08)', borderWidth:2, pointRadius:0, tension:0.15, fill:true}
     ]},
-    options:{ responsive:true, interaction:{mode:'index', intersect:false},
+    options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
       plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{family:'Inter', size:12}}} },
       scales:{ x:{ title:{display:true, text:'Month', font:{family:'Inter', size:11}}, ticks:{maxTicksLimit:10} },
                y:{ title:{display:true, text:'Balance', font:{family:'Inter', size:11}}, ticks:{ callback:(v)=>fmtMoney(v) } } } }
