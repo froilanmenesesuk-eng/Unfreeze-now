@@ -178,6 +178,15 @@
 
   .field-inline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--slate); font-weight:600;}
   .field-inline input{width:110px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-family:var(--font-mono); font-size:13.5px; color:var(--ink);}
+  .variable-check{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--slate); font-weight:500;}
+  .income-avg-badge{display:inline-flex; flex-direction:column; gap:2px;}
+  .income-avg-badge .avg-value{font-family:var(--font-mono); font-size:13.5px; font-weight:600; color:var(--ink);}
+  .income-avg-badge .avg-label{font-size:10.5px; color:var(--slate); text-transform:uppercase; letter-spacing:.03em;}
+  .log-modal-list{max-height:220px; overflow-y:auto; margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius-sm);}
+  .log-modal-row{display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border);}
+  .log-modal-row:last-child{border-bottom:none;}
+  .log-modal-row .log-month{flex:1; font-size:13px; color:var(--slate); font-family:var(--font-mono);}
+  .log-modal-row input{width:100px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-family:var(--font-mono); font-size:13px;}
 
   .order-list{list-style:none; margin:0; padding:0;}
   .order-list li{display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid var(--border);}
@@ -335,7 +344,10 @@
         <div class="section-title">Income sources</div>
         <form id="add-income-form" class="inline-form">
           <input name="source" placeholder="Source (e.g. Salary, Freelance)" required>
-          <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
+          <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo (estimate)" required>
+          <label class="variable-check">
+            <input type="checkbox" name="variable"> Varies monthly
+          </label>
           <button class="btn btn-primary" type="submit">Add income</button>
         </form>
         <div id="income-table-wrap" class="table-wrap"></div>
@@ -445,6 +457,25 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="income-log-modal-backdrop" style="display:none;">
+  <div class="card modal-card">
+    <div class="section-title">Log monthly income</div>
+    <p class="mode-note" style="margin-top:-6px;" id="income-log-modal-name"></p>
+    <div class="log-modal-list" id="income-log-list"></div>
+    <form id="income-log-add-form">
+      <div class="field-inline" style="margin-bottom:6px;">
+        <input type="month" id="income-log-month-input" required style="width:130px;">
+        <input type="number" step="0.01" min="0" id="income-log-amount-input" placeholder="£ this month" required>
+        <button type="submit" class="btn btn-primary">Add</button>
+      </div>
+    </form>
+    <p class="mode-note" id="income-log-avg-note" style="margin-top:8px;"></p>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button type="button" class="btn" id="income-log-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ==================== DATA LAYER ==================== */
 const LS_KEY = 'unfreeze_planner_v1';
@@ -478,6 +509,7 @@ function fmtMoney(n){
 }
 function fmtMonthYear(date){ return date.toLocaleDateString(undefined,{month:'long', year:'numeric'}); }
 function fmtDateShort(date){ return date.toLocaleDateString(undefined,{day:'numeric', month:'short', year:'numeric'}); }
+function fmtMonthLabel(ym){ const [y,m] = ym.split('-').map(Number); return fmtMonthYear(new Date(y, m-1, 1)); }
 function escAttr(s){ return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function addMonths(date, n){ const d = new Date(date); d.setMonth(d.getMonth()+n); return d; }
 function addDays(date, n){ const d = new Date(date); d.setDate(d.getDate()+n); return d; }
@@ -656,6 +688,8 @@ document.addEventListener('click', (e)=>{
     closePayslipModal();
     return;
   }
+  if(e.target.id === 'income-log-close-btn'){ closeIncomeLogModal(); return; }
+  if(e.target.id === 'income-log-modal-backdrop'){ closeIncomeLogModal(); return; }
 });
 document.getElementById('rate-change-form').addEventListener('submit', (e)=>{
   e.preventDefault();
@@ -696,8 +730,86 @@ document.getElementById('payslip-form').addEventListener('submit', (e)=>{
   closePayslipModal();
 });
 
+let incomeLogModalId = null;
+function openIncomeLogModal(incomeId){
+  const inc = STATE.incomes.find(i=>i.id===incomeId);
+  if(!inc) return;
+  incomeLogModalId = incomeId;
+  document.getElementById('income-log-modal-name').textContent = inc.source;
+  const thisMonth = new Date();
+  const mm = String(thisMonth.getMonth()+1).padStart(2,'0');
+  document.getElementById('income-log-month-input').value = `${thisMonth.getFullYear()}-${mm}`;
+  document.getElementById('income-log-amount-input').value = '';
+  renderIncomeLogList();
+  document.getElementById('income-log-modal-backdrop').style.display = 'flex';
+}
+function closeIncomeLogModal(){
+  document.getElementById('income-log-modal-backdrop').style.display = 'none';
+  incomeLogModalId = null;
+}
+function renderIncomeLogList(){
+  const inc = STATE.incomes.find(i=>i.id===incomeLogModalId);
+  if(!inc) return;
+  const log = inc.monthlyLog || {};
+  const months = Object.keys(log).sort().reverse();
+  const listEl = document.getElementById('income-log-list');
+  if(months.length===0){
+    listEl.innerHTML = `<div class="log-modal-row"><span class="log-month">No months logged yet</span></div>`;
+  } else {
+    listEl.innerHTML = months.map(m=>`
+      <div class="log-modal-row" data-month="${m}">
+        <span class="log-month">${fmtMonthLabel(m)}</span>
+        <input type="number" step="0.01" min="0" class="log-amount-input" value="${log[m]}">
+        <button type="button" class="row-delete" data-del-month="${m}">✕</button>
+      </div>`).join('');
+    listEl.querySelectorAll('.log-amount-input').forEach(inp=>inp.addEventListener('change', ()=>{
+      const m = inp.closest('[data-month]').dataset.month;
+      inc.monthlyLog[m] = Number(inp.value)||0;
+      saveData(); renderAll(); renderIncomeLogList();
+    }));
+    listEl.querySelectorAll('[data-del-month]').forEach(btn=>btn.addEventListener('click', ()=>{
+      delete inc.monthlyLog[btn.dataset.delMonth];
+      saveData(); renderAll(); renderIncomeLogList();
+    }));
+  }
+  const avg = effectiveIncomeAmount(inc);
+  document.getElementById('income-log-avg-note').textContent = months.length ? `3-month average: ${fmtMoney(avg)} (used in your budget & payoff plan)` : '';
+}
+document.getElementById('income-log-add-form').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const inc = STATE.incomes.find(i=>i.id===incomeLogModalId);
+  if(!inc) return;
+  const monthVal = document.getElementById('income-log-month-input').value;
+  const amountVal = document.getElementById('income-log-amount-input').value;
+  if(!monthVal || amountVal==='') return;
+  if(!inc.monthlyLog) inc.monthlyLog = {};
+  inc.monthlyLog[monthVal] = Number(amountVal)||0;
+  if(inc.nextPayslipDate){
+    const today = new Date(); today.setHours(0,0,0,0);
+    if(daysBetween(today, parseDateOnly(inc.nextPayslipDate)) <= 0){
+      if(inc.payCycleDays){
+        inc.nextPayslipDate = toDateInputValue(addDays(parseDateOnly(inc.nextPayslipDate), inc.payCycleDays));
+      } else {
+        delete inc.nextPayslipDate;
+      }
+    }
+  }
+  document.getElementById('income-log-amount-input').value = '';
+  saveData(); renderAll();
+  renderIncomeLogList();
+});
+
 /* ==================== BUDGET MATH ==================== */
-function totalIncome(){ return STATE.incomes.reduce((s,i)=>s+Number(i.amount||0),0); }
+function effectiveIncomeAmount(inc){
+  if(!inc.variable) return Number(inc.amount)||0;
+  const log = inc.monthlyLog || {};
+  const months = Object.keys(log).sort().reverse();
+  const recent = months.slice(0,3);
+  if(recent.length===0) return Number(inc.amount)||0;
+  const sum = recent.reduce((s,m)=>s+(Number(log[m])||0),0);
+  return sum / recent.length;
+}
+function totalIncome(){ return STATE.incomes.reduce((s,i)=>s+effectiveIncomeAmount(i),0); }
 function totalMin(){ return STATE.debts.reduce((s,d)=>s+Number(d.minPayment||0),0); }
 function totalExpenses(){ return STATE.expenses.reduce((s,x)=>s+Number(x.amount||0),0); }
 function totalSavingsBalance(){ return STATE.savings.reduce((s,x)=>s+Number(x.balance||0),0); }
@@ -749,14 +861,13 @@ function reminderBannersHTML(){
     }).join(', ');
     html += `<div class="nudge-banner"><span>Rate change coming up for ${items} — do you know the new APR yet? <a href="#" onclick="switchView('debts'); return false;">Update it</a></span></div>`;
   }
-  const payslips = upcomingPayslipReminders();
-  if(payslips.length){
-    const items = payslips.map(inc=>{
-      const when = inc.daysUntil < 0 ? `overdue by ${Math.abs(inc.daysUntil)} day${Math.abs(inc.daysUntil)===1?'':'s'}` : inc.daysUntil===0 ? 'today' : `in ${inc.daysUntil} day${inc.daysUntil===1?'':'s'}`;
-      return `${escAttr(inc.source)} (${when})`;
-    }).join(', ');
-    html += `<div class="nudge-banner"><span>Payslip due for ${items} — once you know the amount, update it. <a href="#" onclick="switchView('income'); return false;">Go to Income</a></span></div>`;
-  }
+  upcomingPayslipReminders().forEach(inc=>{
+    const when = inc.daysUntil < 0 ? `overdue by ${Math.abs(inc.daysUntil)} day${Math.abs(inc.daysUntil)===1?'':'s'}` : inc.daysUntil===0 ? 'today' : `in ${inc.daysUntil} day${inc.daysUntil===1?'':'s'}`;
+    const action = inc.variable
+      ? `<a href="#" onclick="switchView('income'); openIncomeLogModal('${inc.id}'); return false;">Log it</a>`
+      : `<a href="#" onclick="switchView('income'); return false;">Go to Income</a>`;
+    html += `<div class="nudge-banner"><span>Payslip due for ${escAttr(inc.source)} (${when}) — once you know the amount, ${inc.variable?'log it':'update it'}. ${action}</span></div>`;
+  });
   if(shouldShowRateReviewNudge()){
     html += `<div class="nudge-banner"><span>It's been a couple of months — worth double-checking your interest rates haven't changed.</span><button type="button" class="nudge-dismiss" id="dismiss-rate-review-btn">Dismiss</button></div>`;
   }
@@ -929,17 +1040,26 @@ function renderIncome(){
     iwrap.innerHTML = `<div class="empty-state"><h3>No income yet</h3><p>Add a source to see your monthly cash flow.</p></div>`;
   } else {
     iwrap.innerHTML = `<table><thead><tr><th>Source</th><th>£ / mo</th><th></th></tr></thead><tbody>${
-      STATE.incomes.map(i=>`<tr data-id="${i.id}">
+      STATE.incomes.map(i=>{
+        const hasLog = i.variable && i.monthlyLog && Object.keys(i.monthlyLog).length>0;
+        const amountCell = (i.variable && hasLog)
+          ? `<div class="income-avg-badge"><span class="avg-value">${fmtMoney(effectiveIncomeAmount(i))}</span><span class="avg-label">3-mo avg</span></div>`
+          : `<input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${i.amount}">`;
+        const noteLine = i.variable
+          ? `<button type="button" class="link-btn" data-log="${i.id}">${hasLog ? 'Log this month / view history' : 'Log your first month'}</button> · <button type="button" class="link-btn" data-fixed="${i.id}">Make fixed</button>`
+          : `${i.nextPayslipDate
+              ? `Next payslip ${fmtDateShort(parseDateOnly(i.nextPayslipDate))} · <button type="button" class="link-btn" data-payslip="${i.id}">edit</button>`
+              : `<button type="button" class="link-btn" data-payslip="${i.id}">+ remind me on payday</button>`
+            } · <button type="button" class="link-btn" data-variable="${i.id}">Make variable</button>`;
+        return `<tr data-id="${i.id}">
         <td><input class="cell-input text-cell" data-field="source" value="${escAttr(i.source)}"></td>
         <td>
-          <input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${i.amount}">
-          <div class="rate-change-note">${i.nextPayslipDate
-            ? `Next payslip ${fmtDateShort(parseDateOnly(i.nextPayslipDate))} · <button type="button" class="link-btn" data-payslip="${i.id}">edit</button>`
-            : `<button type="button" class="link-btn" data-payslip="${i.id}">+ remind me on payday</button>`
-          }</div>
+          ${amountCell}
+          <div class="rate-change-note">${noteLine}</div>
         </td>
         <td><button class="row-delete" data-del="${i.id}">✕</button></td>
-      </tr>`).join('')}</tbody></table>`;
+      </tr>`;
+      }).join('')}</tbody></table>`;
     iwrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.incomes.find(x=>x.id===id); const field=inp.dataset.field;
       item[field] = field==='source' ? inp.value : Number(inp.value)||0;
@@ -960,6 +1080,17 @@ function renderIncome(){
     }));
     iwrap.querySelectorAll('[data-payslip]').forEach(btn=>btn.addEventListener('click', ()=>{
       openPayslipModal(btn.dataset.payslip);
+    }));
+    iwrap.querySelectorAll('[data-log]').forEach(btn=>btn.addEventListener('click', ()=>{
+      openIncomeLogModal(btn.dataset.log);
+    }));
+    iwrap.querySelectorAll('[data-fixed]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const item = STATE.incomes.find(x=>x.id===btn.dataset.fixed);
+      if(item){ item.amount = Math.round(effectiveIncomeAmount(item)*100)/100; item.variable = false; saveData(); renderAll(); }
+    }));
+    iwrap.querySelectorAll('[data-variable]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const item = STATE.incomes.find(x=>x.id===btn.dataset.variable);
+      if(item){ item.variable = true; if(!item.monthlyLog) item.monthlyLog = {}; saveData(); renderAll(); }
     }));
   }
   renderIncomeDonut();
@@ -995,7 +1126,7 @@ function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data){
 }
 function renderIncomeDonut(){
   renderGenericDonut('incomeDonut','income-donut-wrap','Add income sources to see the breakdown.',
-    STATE.incomes.map(i=>i.source||'Untitled'), STATE.incomes.map(i=>Number(i.amount)||0));
+    STATE.incomes.map(i=>i.source||'Untitled'), STATE.incomes.map(effectiveIncomeAmount));
 }
 function renderExpenseDonut(){
   const byCategory = {};
@@ -1048,7 +1179,7 @@ function renderBudget(){
 }
 document.getElementById('add-income-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.incomes.push({id:uid(), source:f.source.value.trim()||'Untitled', amount:Number(f.amount.value)||0});
+  STATE.incomes.push({id:uid(), source:f.source.value.trim()||'Untitled', amount:Number(f.amount.value)||0, variable:f.variable.checked, monthlyLog:{}});
   f.reset(); saveData(); renderAll();
 });
 document.getElementById('add-expense-form').addEventListener('submit', e=>{
