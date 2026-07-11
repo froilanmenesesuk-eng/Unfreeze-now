@@ -270,6 +270,16 @@
   .nudge-banner{background:var(--thaw-soft); color:#8A5A1A; border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
   .nudge-banner a{color:#8A5A1A; text-decoration:underline;}
   .nudge-dismiss{background:none; border:none; color:#8A5A1A; font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; flex-shrink:0; padding:0;}
+  .snapshot-card{margin-bottom:18px;}
+  .snapshot-message{display:flex; align-items:flex-start; gap:10px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border);}
+  .snapshot-icon{font-size:18px; line-height:1.4;}
+  .snapshot-message p{flex:1; margin:0; font-family:var(--font-display); font-size:16.5px; font-weight:600; color:var(--ink); line-height:1.4;}
+  #snapshot-refresh-btn{flex-shrink:0; align-self:center;}
+  .insight-list{margin:0; padding-left:18px; display:flex; flex-direction:column; gap:8px;}
+  .insight-list li{font-size:13.5px; color:var(--ink); line-height:1.5;}
+  .help-tip{display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; background:var(--slate-soft); color:var(--slate); font-size:11px; font-weight:700; margin-left:6px; cursor:pointer; vertical-align:middle; user-select:none;}
+  .help-tip:hover{background:var(--glacier-soft); color:var(--glacier);}
+  #help-tip-popover{position:fixed; max-width:280px; background:var(--ink); color:#EAF1F6; font-size:12.5px; line-height:1.5; padding:10px 12px; border-radius:var(--radius-sm); box-shadow:0 8px 24px rgba(27,40,56,0.25); z-index:2000; display:none;}
 </style>
 </head>
 <body>
@@ -316,7 +326,7 @@
 
     <section id="view-debts" class="view">
       <div class="card">
-        <div class="section-title">Add a debt</div>
+        <div class="section-title">Add a debt <span class="help-tip" data-tip="Balance is what you currently owe. APR is the yearly interest rate — check your statement or provider app. Minimum payment is the smallest amount your provider requires each month; paying only that is what keeps debt around longest.">?</span></div>
         <form id="add-debt-form" class="inline-form">
           <input name="name" placeholder="Name (e.g. Visa card)" required>
           <input name="balance" type="number" step="0.01" min="0" placeholder="Balance owed" required>
@@ -343,7 +353,7 @@
         </div>
       </div>
       <div class="card">
-        <div class="section-title">Income sources</div>
+        <div class="section-title">Income sources <span class="help-tip" data-tip="Add each source of money coming in each month. If it changes amount month to month (shifts, freelance, overtime), tick Varies monthly — Unfreeze will average your last 3 logged months instead of relying on one guessed number.">?</span></div>
         <form id="add-income-form" class="inline-form">
           <input name="source" placeholder="Source (e.g. Salary, Freelance)" required>
           <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo (estimate)" required>
@@ -362,7 +372,7 @@
       <div class="locked-wrap" id="budget-locked-wrap">
       <div class="two-col">
         <div class="card">
-          <div class="section-title">Expenses &amp; subscriptions</div>
+          <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly — bills, subscriptions, or a category you make up yourself. Type any category name; it doesn't have to match a preset list.">?</span></div>
           <form id="add-expense-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
@@ -386,7 +396,7 @@
           </div>
         </div>
         <div class="card">
-          <div class="section-title">Savings accounts</div>
+          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Use the + contribute field to add money without recalculating the total yourself, and set an optional goal to see your progress.">?</span></div>
           <form id="add-savings-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="balance" type="number" step="0.01" min="0" placeholder="Current balance" required>
@@ -485,6 +495,8 @@
     </div>
   </div>
 </div>
+
+<div id="help-tip-popover"></div>
 
 <script>
 /* ==================== DATA LAYER ==================== */
@@ -701,6 +713,34 @@ document.addEventListener('click', (e)=>{
   }
   if(e.target.id === 'income-log-close-btn'){ closeIncomeLogModal(); return; }
   if(e.target.id === 'income-log-modal-backdrop'){ closeIncomeLogModal(); return; }
+  if(e.target.id === 'snapshot-refresh-btn'){
+    snapshotMessageOffset++;
+    const msgEl = document.getElementById('snapshot-message-text');
+    if(msgEl) msgEl.textContent = currentMotivationalMessage();
+    return;
+  }
+  const tip = e.target.closest && e.target.closest('.help-tip');
+  if(tip){
+    const popover = document.getElementById('help-tip-popover');
+    const already = popover.style.display==='block' && popover.dataset.for===tip.dataset.tip;
+    if(already){
+      popover.style.display = 'none';
+      popover.dataset.for = '';
+    } else {
+      popover.textContent = tip.dataset.tip;
+      popover.style.display = 'block';
+      const rect = tip.getBoundingClientRect();
+      const maxLeft = window.innerWidth - 296;
+      popover.style.left = Math.max(8, Math.min(rect.left, maxLeft)) + 'px';
+      popover.style.top = (rect.bottom + 6) + 'px';
+      popover.dataset.for = tip.dataset.tip;
+    }
+    return;
+  }
+  if(!e.target.closest || !e.target.closest('#help-tip-popover')){
+    const popover = document.getElementById('help-tip-popover');
+    if(popover) popover.style.display = 'none';
+  }
 });
 document.getElementById('rate-change-form').addEventListener('submit', (e)=>{
   e.preventDefault();
@@ -882,6 +922,120 @@ function reminderBannersHTML(){
   return html;
 }
 
+/* ==================== FINANCIAL SNAPSHOT ==================== */
+function debtOriginalBalance(d){ return d.originalBalance!=null ? d.originalBalance : d.balance; }
+
+function motivationalMessagePool(){
+  const pool = [
+    "Every payment is a step closer to freedom.",
+    "Small, consistent progress beats big infrequent effort.",
+    "Future you is going to thank present you for this.",
+    "Debt-free isn't a destination — it's a decision you make every month.",
+    "You showed up today. That's what momentum looks like.",
+    "Progress isn't always visible day to day, but it compounds.",
+    "You don't have to see the whole staircase, just the next step."
+  ];
+  if(STATE.debts.length){
+    const totalOriginal = STATE.debts.reduce((s,d)=>s+debtOriginalBalance(d),0);
+    const totalNow = STATE.debts.reduce((s,d)=>s+Number(d.balance||0),0);
+    if(totalOriginal>0){
+      const pct = Math.round((1 - totalNow/totalOriginal)*100);
+      if(pct>0) pool.push(`You've already paid off ${pct}% of your original debt. Keep going.`);
+    }
+  }
+  if(isUnlocked() && STATE.debts.length){
+    const extra = effectiveExtraPayment();
+    const sched = computeSchedule(STATE.debts, extra, STATE.settings.strategy);
+    if(sched.months>0 && !sched.maxedOut) pool.push(`Just ${pluralMonths(sched.months)} until you're debt-free.`);
+  }
+  STATE.savings.filter(s=>s.goal>0).forEach(s=>{
+    const pct = Math.min(100, Math.round((Number(s.balance)||0)/s.goal*100));
+    if(pct>0 && pct<100) pool.push(`Your ${s.name} is ${pct}% of the way to its goal.`);
+  });
+  return pool;
+}
+let snapshotMessageOffset = 0;
+function currentMotivationalMessage(){
+  const pool = motivationalMessagePool();
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+  const idx = ((dayOfYear + snapshotMessageOffset) % pool.length + pool.length) % pool.length;
+  return pool[idx];
+}
+
+function generateFinancialInsights(){
+  const insights = [];
+  const income = totalIncome(), expenses = totalExpenses(), minPay = totalMin();
+  const surp = surplus();
+
+  if(income>0 && minPay>0){
+    insights.push(`${Math.round(minPay/income*100)}% of your income goes to minimum debt payments.`);
+  }
+  if(surp<0){
+    insights.push(`Your expenses and minimum payments exceed your income by ${fmtMoney(Math.abs(surp))}/mo — worth trimming somewhere or growing income.`);
+  } else if(income>0){
+    insights.push(`You have ${fmtMoney(surp)}/mo left after bills and minimums — about ${Math.round(surp/income*100)}% of your income.`);
+  }
+
+  if(STATE.expenses.length){
+    const byCategory = {};
+    STATE.expenses.forEach(x=>{ const c=x.category||'Other'; byCategory[c]=(byCategory[c]||0)+(Number(x.amount)||0); });
+    const [topCat, topAmt] = Object.entries(byCategory).sort((a,b)=>b[1]-a[1])[0];
+    const pctOfExpenses = expenses>0 ? Math.round(topAmt/expenses*100) : 0;
+    insights.push(`${escAttr(topCat)} is your biggest expense category at ${fmtMoney(topAmt)}/mo (${pctOfExpenses}% of tracked expenses).`);
+  }
+
+  STATE.incomes.filter(i=>i.variable && i.monthlyLog && i.monthlyLog[thisMonthKey()]!=null).forEach(i=>{
+    const thisAmt = i.monthlyLog[thisMonthKey()];
+    const avg = effectiveIncomeAmount(i);
+    if(avg>0){
+      const diffPct = Math.round((thisAmt-avg)/avg*100);
+      if(Math.abs(diffPct)>=10) insights.push(`This month's ${escAttr(i.source)} (${fmtMoney(thisAmt)}) is ${Math.abs(diffPct)}% ${diffPct>0?'above':'below'} your 3-month average.`);
+    }
+  });
+
+  if(STATE.debts.length){
+    const extra = effectiveExtraPayment();
+    const sched = computeSchedule(STATE.debts, extra, STATE.settings.strategy);
+    if(!sched.maxedOut && sched.months>0){
+      insights.push(`At your current pace, you'll be debt-free by ${fmtMonthYear(addMonths(new Date(), sched.months))} — paying ${fmtMoney(sched.totalInterest)} in total interest.`);
+    } else if(sched.maxedOut){
+      insights.push(`At your current extra payment, payoff is taking a very long time — consider increasing it if you can.`);
+    }
+  }
+
+  STATE.savings.filter(s=>s.goal>0).forEach(s=>{
+    const pct = Math.min(100, Math.round((Number(s.balance)||0)/s.goal*100));
+    insights.push(`${escAttr(s.name)}: ${pct}% of the way to your ${fmtMoney(s.goal)} goal.`);
+  });
+
+  return insights;
+}
+
+function snapshotCardHTML(){
+  const message = currentMotivationalMessage();
+  const bodyHtml = isUnlocked()
+    ? (()=>{
+        const insights = generateFinancialInsights();
+        return insights.length
+          ? `<ul class="insight-list">${insights.map(i=>`<li>${i}</li>`).join('')}</ul>`
+          : `<p class="mode-note" style="margin:0;">Add some debts, income and expenses to see a live analysis here.</p>`;
+      })()
+    : `<div class="locked-wrap" style="min-height:70px;">
+        <div style="filter:blur(3px); opacity:.5; pointer-events:none;">
+          <ul class="insight-list"><li>You have £X/mo left after bills and minimums.</li><li>At your current pace, you'll be debt-free by a projected date.</li></ul>
+        </div>
+        <div class="locked-overlay">${paywallCardHTML({compact:true})}</div>
+      </div>`;
+  return `<div class="card snapshot-card">
+    <div class="snapshot-message">
+      <span class="snapshot-icon">✨</span>
+      <p id="snapshot-message-text">${message}</p>
+      <button type="button" class="link-btn" id="snapshot-refresh-btn">New message</button>
+    </div>
+    ${bodyHtml}
+  </div>`;
+}
+
 /* ==================== PAYOFF ENGINE ==================== */
 function computeSchedule(debtsInput, extraPayment, strategy){
   const totalMinOriginal = debtsInput.reduce((s,d)=>s+Number(d.minPayment||0),0);
@@ -1034,7 +1188,8 @@ function renderDebts(){
 }
 document.getElementById('add-debt-form').addEventListener('submit', e=>{
   e.preventDefault(); const f = e.target;
-  STATE.debts.push({id:uid(), name:f.name.value.trim()||'Untitled debt', balance:Number(f.balance.value)||0, apr:Number(f.apr.value)||0, minPayment:Number(f.minPayment.value)||0});
+  const balance = Number(f.balance.value)||0;
+  STATE.debts.push({id:uid(), name:f.name.value.trim()||'Untitled debt', balance, originalBalance:balance, apr:Number(f.apr.value)||0, minPayment:Number(f.minPayment.value)||0});
   f.reset(); saveData(); renderAll();
 });
 
@@ -1266,6 +1421,7 @@ function renderDashboard(){
     if(paymentBanner.type !== 'verifying') paymentBanner = null; // show success/error once
   }
   bannerHTML += reminderBannersHTML();
+  bannerHTML += snapshotCardHTML();
 
   if(STATE.debts.length===0){
     el.innerHTML = `
@@ -1535,7 +1691,7 @@ function renderPlan(){
     </div>
 
     <div class="card" style="margin-bottom:18px;">
-      <div class="section-title">Strategy &amp; extra payment</div>
+      <div class="section-title">Strategy &amp; extra payment <span class="help-tip" data-tip="Avalanche pays your highest-interest debt first — mathematically the cheapest route. Snowball pays your smallest balance first — some people find the quick wins easier to stick with. Both use the same extra payment amount; only the order changes.">?</span></div>
       <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
         <div class="strategy-toggle">
           <button class="${strat==='avalanche'?'active-avalanche':''}" data-strat="avalanche">Avalanche (highest APR first)</button>
