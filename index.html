@@ -443,6 +443,9 @@
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="savings-table-wrap" class="table-wrap"></div>
+          <div id="savings-donut-wrap" style="margin-top:16px;">
+            <canvas id="savingsDonut" height="170"></canvas>
+          </div>
         </div>
       </div>
       <div class="locked-overlay" id="budget-overlay" style="display:none;"></div>
@@ -614,6 +617,62 @@ function lerpColor(a,b,t){
   const pb=[1,3,5].map(i=>parseInt(b.substr(i,2),16));
   const r = pa.map((v,i)=>Math.round(v+(pb[i]-v)*t));
   return '#'+r.map(v=>v.toString(16).padStart(2,'0')).join('');
+}
+function lerpColorStops(stops, t){
+  const seg = 1/(stops.length-1);
+  const idx = Math.max(0, Math.min(stops.length-2, Math.floor(t/seg)));
+  const localT = Math.max(0, Math.min(1, (t - idx*seg)/seg));
+  return lerpColor(stops[idx], stops[idx+1], localT);
+}
+function hexToRgba(hex, alpha){
+  const v=[1,3,5].map(i=>parseInt(hex.substr(i,2),16));
+  return `rgba(${v[0]},${v[1]},${v[2]},${alpha})`;
+}
+
+/* ==================== CHART COLOR SYSTEM ====================
+   Every fixed-meaning series gets its own color, and the two dynamic
+   per-item palettes (income sources, expense categories) are disjoint
+   from each other and from the fixed colors, so nothing repeats across
+   charts even when they appear on different tabs. */
+const CHART_COLORS = {
+  avalanche: '#3B6FD1',
+  snowball: '#F0A93C',
+  minPayments: '#7C8B99',
+  expenses: '#8B5FBF',
+  extraToDebt: '#2E9E8F',
+  toSavings: '#D9497A'
+};
+const DEBT_RISK_GRADIENT = ['#3F9142','#D4A017','#A83250']; // low -> medium -> high APR
+const INCOME_PALETTE = ['#4FA8D8','#A5478C','#8FA83C','#E37B2C','#5D6FA6','#7B6FC4'];
+const EXPENSE_PALETTE = ['#34ADA4','#E4728F','#B5804F','#6E9F3B','#C4562B','#A8477A'];
+const SAVINGS_PALETTE = ['#BA4836','#A6A230','#40965D','#3096A6','#A54DB2','#CB4D58'];
+function hashColorFrom(str, palette){
+  let hash = 0;
+  const s = String(str||'');
+  for(let i=0;i<s.length;i++){ hash = (hash*31 + s.charCodeAt(i)) | 0; }
+  return palette[Math.abs(hash) % palette.length];
+}
+// Maps each label to a color from `palette`, preferring hashColorFrom's pick but
+// walking to the next free slot when that color is already taken by another
+// label in the same set (as long as the palette has enough room). Sorting the
+// labels first makes the result independent of call-site ordering, so the same
+// set of names always gets the same colors whether rendered as a table, a
+// donut, or anywhere else.
+function assignPaletteColors(labels, palette){
+  const sorted = [...new Set(labels)].sort();
+  const used = new Set();
+  const map = {};
+  sorted.forEach(label=>{
+    let idx = palette.indexOf(hashColorFrom(label, palette));
+    let attempts = 0;
+    while(used.has(palette[idx]) && attempts < palette.length){
+      idx = (idx+1) % palette.length;
+      attempts++;
+    }
+    used.add(palette[idx]);
+    map[label] = palette[idx];
+  });
+  return map;
 }
 
 /* ==================== UNLOCK / PAYWALL ==================== */
@@ -1194,7 +1253,7 @@ function renderInterestCompareChart(canvasId, avalanche, snowball){
       datasets:[{
         label:'Total interest paid',
         data:[avalanche.totalInterest, snowball.totalInterest],
-        backgroundColor:['#4C7EA8','#E8963D'],
+        backgroundColor:[CHART_COLORS.avalanche, CHART_COLORS.snowball],
         borderRadius:8,
         barThickness:34
       }]
@@ -1376,17 +1435,11 @@ function renderIncome(){
   renderIncomeDonut();
 }
 
-const DONUT_PALETTE = ['#4C7EA8','#E8963D','#2F6B4F','#8E7CC3','#C0533E','#7C8B99'];
 const EXPENSE_CATEGORIES = ['Subscription','Bill','Rent/Mortgage','Utilities','Insurance','Groceries','Dining out','Transport','Childcare','Health & Fitness','Shopping','Entertainment','Other'];
 function normalizeCategory(str){
   const trimmed = String(str||'').trim();
   if(!trimmed) return 'Other';
   return trimmed.toLowerCase().replace(/\b\w/g, c=>c.toUpperCase());
-}
-function hashColor(str){
-  let hash = 0;
-  for(let i=0;i<str.length;i++){ hash = (hash*31 + str.charCodeAt(i)) | 0; }
-  return DONUT_PALETTE[Math.abs(hash) % DONUT_PALETTE.length];
 }
 const genericDonutInstances = {};
 function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data, colors){
@@ -1405,7 +1458,7 @@ function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data, colors){
   if(genericDonutInstances[canvasId]) genericDonutInstances[canvasId].destroy();
   genericDonutInstances[canvasId] = new Chart(ctx, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor: colors || labels.map((_,i)=>DONUT_PALETTE[i%DONUT_PALETTE.length]), borderColor:'#fff', borderWidth:2 }] },
+    data:{ labels, datasets:[{ data, backgroundColor: colors || labels.map(l=>hashColorFrom(l, EXPENSE_PALETTE)), borderColor:'#fff', borderWidth:2 }] },
     options:{
       responsive:true, cutout:'62%',
       plugins:{
@@ -1416,14 +1469,23 @@ function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data, colors){
   });
 }
 function renderIncomeDonut(){
+  const labels = STATE.incomes.map(i=>i.source||'Untitled');
+  const colorMap = assignPaletteColors(labels, INCOME_PALETTE);
   renderGenericDonut('incomeDonut','income-donut-wrap','Add income sources to see the breakdown.',
-    STATE.incomes.map(i=>i.source||'Untitled'), STATE.incomes.map(effectiveIncomeAmount));
+    labels, STATE.incomes.map(effectiveIncomeAmount), labels.map(l=>colorMap[l]));
 }
 function renderExpenseDonut(){
   const byCategory = {};
   STATE.expenses.forEach(x=>{ const cat=normalizeCategory(x.category); byCategory[cat] = (byCategory[cat]||0) + (Number(x.amount)||0); });
   const labels = Object.keys(byCategory);
-  renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory), labels.map(hashColor));
+  const colorMap = assignPaletteColors(labels, EXPENSE_PALETTE);
+  renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory), labels.map(l=>colorMap[l]));
+}
+function renderSavingsDonut(){
+  const labels = STATE.savings.map(s=>s.name||'Untitled');
+  const colorMap = assignPaletteColors(labels, SAVINGS_PALETTE);
+  renderGenericDonut('savingsDonut','savings-donut-wrap','Add savings accounts to see the breakdown.',
+    labels, STATE.savings.map(s=>Number(s.balance)||0), labels.map(l=>colorMap[l]));
 }
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
@@ -1469,10 +1531,11 @@ function renderBudget(){
       const totalB = groups[b].reduce((s,x)=>s+Number(x.amount||0),0);
       return totalB - totalA;
     });
+    const categoryColorMap = assignPaletteColors(sortedCats, EXPENSE_PALETTE);
     const bodyRows = sortedCats.map(cat=>{
       const items = groups[cat];
       const subtotal = items.reduce((s,x)=>s+Number(x.amount||0),0);
-      const color = hashColor(cat);
+      const color = categoryColorMap[cat];
       const headerRow = `<tr class="category-group-row"><td colspan="4">
         <span class="group-dot" style="background:${color};"></span>
         <span class="group-name">${escAttr(cat)}</span>
@@ -1600,6 +1663,7 @@ function renderBudget(){
     }));
   }
   renderExpenseDonut();
+  renderSavingsDonut();
 }
 document.getElementById('add-income-form').addEventListener('submit', e=>{
   e.preventDefault();
@@ -1790,7 +1854,7 @@ function renderDashboard(){
     </div>
   `;
 
-  renderMeltChart(current, debtFreeDate, totalDebt);
+  renderMeltChart(current, debtFreeDate, totalDebt, strat==='avalanche' ? CHART_COLORS.avalanche : CHART_COLORS.snowball);
   renderSplitDoughnut(minPay, expenses, extra, toSavings);
   renderDebtBarChart();
   renderInterestCompareChart('dashCompareChart', avalanche, snowball);
@@ -1824,7 +1888,8 @@ function renderDashboard(){
   });
 }
 
-function renderMeltChart(result, debtFreeDate, totalDebt){
+function renderMeltChart(result, debtFreeDate, totalDebt, lineColor){
+  lineColor = lineColor || CHART_COLORS.avalanche;
   const container = document.getElementById('melt-chart-container');
   const w=560,h=240,padTop=24,padBottom=34,padSide=10;
   const plotH=h-padTop-padBottom, plotW=w-padSide*2;
@@ -1841,11 +1906,11 @@ function renderMeltChart(result, debtFreeDate, totalDebt){
   container.innerHTML = `
   <svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img" aria-label="Total debt balance declining to zero over ${result.months} months">
     <defs><linearGradient id="meltGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#4C7EA8" stop-opacity="0.35"/><stop offset="100%" stop-color="#4C7EA8" stop-opacity="0.02"/>
+      <stop offset="0%" stop-color="${lineColor}" stop-opacity="0.35"/><stop offset="100%" stop-color="${lineColor}" stop-opacity="0.02"/>
     </linearGradient></defs>
     <line x1="${padSide}" y1="${padTop+plotH}" x2="${padSide+plotW}" y2="${padTop+plotH}" stroke="#E1E7ED" stroke-width="1"/>
     <path d="${areaPath}" fill="url(#meltGrad)"/>
-    <path d="${linePath}" fill="none" stroke="#4C7EA8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${linePath}" fill="none" stroke="${lineColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="${coords[0][0]}" cy="${coords[0][1]}" r="4" fill="#1B2838"/>
     <circle cx="${coords[coords.length-1][0]}" cy="${coords[coords.length-1][1]}" r="5" fill="#2F6B4F"/>
     <text x="${coords[0][0]}" y="${coords[0][1]-10}" font-family="IBM Plex Mono, monospace" font-size="11" fill="#1B2838">${fmtMoney(totalDebt)}</text>
@@ -1890,7 +1955,7 @@ function renderSplitDoughnut(minPay, expenses, extra, toSavings){
   if(splitDoughnutInstance) splitDoughnutInstance.destroy();
   const data = [minPay, expenses, extra, toSavings];
   const labels = ['Minimum payments','Expenses & subs','Extra to debt','To savings'];
-  const colors = ['#7C8B99','#8E7CC3','#4C7EA8','#E8963D'];
+  const colors = [CHART_COLORS.minPayments, CHART_COLORS.expenses, CHART_COLORS.extraToDebt, CHART_COLORS.toSavings];
   splitDoughnutInstance = new Chart(ctx, {
     type:'doughnut',
     data:{ labels, datasets:[{ data, backgroundColor:colors, borderColor:'#fff', borderWidth:2 }] },
@@ -1912,7 +1977,7 @@ function renderDebtBarChart(){
   if(debtBarChartInstance) debtBarChartInstance.destroy();
   const debts = [...STATE.debts].sort((a,b)=>b.apr-a.apr);
   const maxApr = Math.max(...debts.map(d=>Number(d.apr)||0), 1);
-  const colors = debts.map(d=> lerpColor('#4C7EA8','#C0533E', Math.min(1,(Number(d.apr)||0)/maxApr)) );
+  const colors = debts.map(d=> lerpColorStops(DEBT_RISK_GRADIENT, Math.min(1,(Number(d.apr)||0)/maxApr)) );
   debtBarChartInstance = new Chart(ctx, {
     type:'bar',
     data:{ labels: debts.map(d=>d.name), datasets:[{ label:'Balance', data: debts.map(d=>Number(d.balance)||0), backgroundColor:colors, borderRadius:6 }] },
@@ -2044,8 +2109,8 @@ function renderPlanChart(avalanche, snowball){
   planChartInstance = new Chart(ctx, {
     type:'line',
     data:{ labels, datasets:[
-      {label:'Avalanche', data:avData, borderColor:'#4C7EA8', backgroundColor:'rgba(76,126,168,0.08)', borderWidth:2, pointRadius:0, tension:0.15, fill:true},
-      {label:'Snowball', data:snData, borderColor:'#E8963D', backgroundColor:'rgba(232,150,61,0.08)', borderWidth:2, pointRadius:0, tension:0.15, fill:true}
+      {label:'Avalanche', data:avData, borderColor:CHART_COLORS.avalanche, backgroundColor:hexToRgba(CHART_COLORS.avalanche,0.08), borderWidth:2, pointRadius:0, tension:0.15, fill:true},
+      {label:'Snowball', data:snData, borderColor:CHART_COLORS.snowball, backgroundColor:hexToRgba(CHART_COLORS.snowball,0.08), borderWidth:2, pointRadius:0, tension:0.15, fill:true}
     ]},
     options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index', intersect:false},
       plugins:{ legend:{position:'bottom', labels:{boxWidth:12, font:{family:'Inter', size:12}}} },
