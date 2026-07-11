@@ -99,6 +99,12 @@
   .headline-card .eyebrow{font-size:12.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:10px;}
   .headline-card h2{font-family:var(--font-display); font-size:33px; margin:0 0 6px; font-weight:600;}
   .headline-card p{color:#C7D6E1; margin:0; font-size:14.5px;}
+  .free-extra-control{margin-top:18px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.15);}
+  .free-extra-control label{display:block; font-size:11.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.04em; font-weight:600; margin-bottom:8px;}
+  .free-extra-row{display:flex; align-items:center; gap:8px;}
+  .free-extra-row span{font-size:13.5px; color:#C7D6E1;}
+  .free-extra-row input{width:100px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.28); border-radius:var(--radius-sm); padding:8px 10px; font-family:var(--font-mono); font-size:15px; color:#fff;}
+  .free-extra-row input:focus{border-color:var(--thaw); outline:none;}
   .donut-card{display:flex; flex-direction:column;}
   .donut-empty{color:var(--slate); font-size:13px; margin:0;}
 
@@ -573,7 +579,7 @@ function paywallCardHTML({compact=false} = {}){
     <div class="paywall-card ${compact?'compact':''}">
       <div class="lock-icon">🔒</div>
       <h3>Unlock full access</h3>
-      <p>Budgeting, avalanche &amp; snowball payoff plans, and every chart on your dashboard are part of the full version.</p>
+      <p>Budgeting, the Avalanche vs. Snowball comparison, and every chart on your dashboard are part of the full version.</p>
       <div class="price">£8 <small>one-time — not a subscription</small></div>
       <a class="unlock-btn" href="${STRIPE_PAYMENT_LINK}">Unlock for £8 →</a>
       <button type="button" class="restore-link" data-action="restore-purchase">Already paid? Restore purchase</button>
@@ -586,7 +592,7 @@ function renderSidebarBadge(){
   if(isUnlocked()){
     el.innerHTML = `<div class="tier" style="color:var(--evergreen);">Full access ✓</div><p>Thanks for supporting Unfreeze — every feature is unlocked on this device.</p>`;
   } else {
-    el.innerHTML = `<div class="tier">Free preview</div><p>Debts are free to track. Budgeting and your payoff plan unlock with a one-time £8 payment.</p><a class="unlock-btn" style="display:block; text-align:center; margin-top:10px; padding:9px 0; font-size:13px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a>`;
+    el.innerHTML = `<div class="tier">Free preview</div><p>Debts are free to track, and you can preview your debt-free date. Budgeting and the full payoff plan unlock with a one-time £8 payment.</p><a class="unlock-btn" style="display:block; text-align:center; margin-top:10px; padding:9px 0; font-size:13px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a>`;
   }
 }
 
@@ -1501,6 +1507,8 @@ function renderDashboard(){
   const extra = effectiveExtraPayment();
   const toSavings = savingsFromSplit();
   const totalDebt = STATE.debts.reduce((s,d)=>s+Number(d.balance||0),0);
+  const current = computeSchedule(STATE.debts, extra, strat);
+  const debtFreeDate = addMonths(new Date(), current.months);
 
   const basicStats = `
     <div class="grid-cards">
@@ -1511,37 +1519,57 @@ function renderDashboard(){
       <div class="stat-card"><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
     </div>`;
 
+  const headlineCardHTML = `
+    <div class="headline-card">
+      <canvas class="snow-canvas" id="snowCanvas"></canvas>
+      <div class="headline-content">
+        <div class="eyebrow">Projected debt-free date${isUnlocked() ? ` · ${strat==='avalanche'?'Avalanche':'Snowball'} method` : ''}</div>
+        <h2>${current.maxedOut ? 'Add an extra payment to see a payoff date' : fmtMonthYear(debtFreeDate)}</h2>
+        <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
+        <div class="free-extra-control">
+          <label for="free-extra-input">Try a different extra payment</label>
+          <div class="free-extra-row">
+            <span>£</span>
+            <input type="number" min="0" step="10" id="free-extra-input" value="${Math.round(extra)}">
+            <span>/mo extra</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  function wireHeadlineCard(){
+    startSnowfall(document.getElementById('snowCanvas'));
+    const freeExtraInput = document.getElementById('free-extra-input');
+    if(freeExtraInput) freeExtraInput.addEventListener('change', e=>{
+      STATE.settings.extraPaymentManual = Math.max(0, Number(e.target.value)||0);
+      STATE.settings.paymentMode = 'manual';
+      saveData(); renderAll();
+    });
+  }
+
   if(!isUnlocked()){
     el.innerHTML = `
       ${bannerHTML}
+      ${headlineCardHTML}
       ${basicStats}
       <div class="locked-wrap" style="min-height:380px;">
         <div class="card" style="filter:blur(3px); opacity:0.5; pointer-events:none;">
-          <div class="section-title">Debt-free date, budget split &amp; payoff charts</div>
-          <p style="color:var(--slate); font-size:13.5px;">Your projected debt-free date, avalanche vs. snowball comparison, and money-split charts live here.</p>
+          <div class="section-title">Budget split, Avalanche vs. Snowball &amp; payoff charts</div>
+          <p style="color:var(--slate); font-size:13.5px;">See how your money splits between debt and savings, compare Avalanche vs. Snowball, and get the full payoff charts here.</p>
         </div>
         <div class="locked-overlay">${paywallCardHTML()}</div>
       </div>`;
+    wireHeadlineCard();
     return;
   }
 
-  const current = computeSchedule(STATE.debts, extra, strat);
-  const avalanche = computeSchedule(STATE.debts, extra, 'avalanche');
-  const snowball = computeSchedule(STATE.debts, extra, 'snowball');
-  const debtFreeDate = addMonths(new Date(), current.months);
+  const avalanche = strat==='avalanche' ? current : computeSchedule(STATE.debts, extra, 'avalanche');
+  const snowball = strat==='snowball' ? current : computeSchedule(STATE.debts, extra, 'snowball');
   const pct = STATE.settings.savingsProtectPct;
   const deficit = surp <= 0;
 
   el.innerHTML = `
     ${bannerHTML}
-    <div class="headline-card">
-      <canvas class="snow-canvas" id="snowCanvas"></canvas>
-      <div class="headline-content">
-        <div class="eyebrow">Projected debt-free date · ${strat==='avalanche'?'Avalanche':'Snowball'} method</div>
-        <h2>${current.maxedOut ? 'Add more to your budget to see a payoff date' : fmtMonthYear(debtFreeDate)}</h2>
-        <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
-      </div>
-    </div>
+    ${headlineCardHTML}
 
     ${basicStats}
 
@@ -1588,7 +1616,7 @@ function renderDashboard(){
   renderSplitDoughnut(minPay, expenses, extra, toSavings);
   renderDebtBarChart();
   renderInterestCompareChart('dashCompareChart', avalanche, snowball);
-  startSnowfall(document.getElementById('snowCanvas'));
+  wireHeadlineCard();
 
   const slider = document.getElementById('split-slider');
   if(slider){
