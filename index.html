@@ -99,6 +99,10 @@
   .headline-card .eyebrow{font-size:12.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.06em; font-weight:600; margin-bottom:10px;}
   .headline-card h2{font-family:var(--font-display); font-size:33px; margin:0 0 6px; font-weight:600;}
   .headline-card p{color:#C7D6E1; margin:0; font-size:14.5px;}
+  .interest-teaser{margin-top:10px !important; font-size:13.5px;}
+  .interest-teaser strong{color:#fff; font-family:var(--font-mono);}
+  .interest-teaser.highlight{color:#FBE8D2 !important; background:rgba(232,150,61,0.16); border:1px solid rgba(232,150,61,0.35); border-radius:var(--radius-sm); padding:9px 12px;}
+  .interest-teaser.highlight a{color:#fff; font-weight:600; text-decoration:underline;}
   .free-extra-control{margin-top:18px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.15);}
   .free-extra-control label{display:block; font-size:11.5px; color:#9FB6C7; text-transform:uppercase; letter-spacing:.04em; font-weight:600; margin-bottom:8px;}
   .free-extra-row{display:flex; align-items:center; gap:8px;}
@@ -172,8 +176,8 @@
   .rate-change-note{font-size:11.5px; color:var(--slate); margin-top:3px; white-space:nowrap;}
   .link-btn{background:none; border:none; padding:0; color:var(--glacier); font-size:11.5px; text-decoration:underline; cursor:pointer;}
   .link-btn:hover{color:#3E6C90;}
-  .tag-input{border:1px solid transparent; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; text-align:center;}
-  .tag-input:hover, .tag-input:focus{border-color:currentColor;}
+  .tag-select{border:1px solid transparent; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; width:100%; cursor:pointer;}
+  .tag-select:hover, .tag-select:focus{border-color:currentColor;}
   .category-group-row td{background:var(--frost); padding:8px 10px; border-bottom:1px solid var(--border);}
   .category-group-row .group-dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:middle;}
   .category-group-row .group-name{font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--slate);}
@@ -389,18 +393,23 @@
           <form id="add-expense-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
-            <input name="category" list="expense-category-suggestions" placeholder="Category" value="Other" required>
-            <datalist id="expense-category-suggestions">
-              <option value="Subscription">
-              <option value="Bill">
-              <option value="Rent/Mortgage">
-              <option value="Insurance">
-              <option value="Transport">
-              <option value="Groceries">
-              <option value="Childcare">
-              <option value="Entertainment">
-              <option value="Other">
-            </datalist>
+            <select name="category" id="expense-category-select">
+              <option value="Subscription">Subscription</option>
+              <option value="Bill">Bill</option>
+              <option value="Rent/Mortgage">Rent/Mortgage</option>
+              <option value="Utilities">Utilities</option>
+              <option value="Insurance">Insurance</option>
+              <option value="Groceries">Groceries</option>
+              <option value="Dining out">Dining out</option>
+              <option value="Transport">Transport</option>
+              <option value="Childcare">Childcare</option>
+              <option value="Health &amp; Fitness">Health &amp; Fitness</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Other" selected>Other</option>
+              <option value="__custom__">+ Type my own…</option>
+            </select>
+            <input name="categoryCustom" id="expense-category-custom" type="text" placeholder="Category name" style="display:none;">
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="expense-table-wrap" class="table-wrap"></div>
@@ -1041,7 +1050,7 @@ function snapshotCardHTML(){
           ? `<ul class="insight-list">${insights.map(i=>`<li>${i}</li>`).join('')}</ul>`
           : `<p class="mode-note" style="margin:0;">Add some debts, income and expenses to see a live analysis here.</p>`;
       })()
-    : `<div class="locked-wrap" style="min-height:70px;">
+    : `<div class="locked-wrap" style="min-height:300px;">
         <div style="filter:blur(3px); opacity:.5; pointer-events:none;">
           <ul class="insight-list"><li>You have £X/mo left after bills and minimums.</li><li>At your current pace, you'll be debt-free by a projected date.</li></ul>
         </div>
@@ -1315,6 +1324,7 @@ function renderIncome(){
 }
 
 const DONUT_PALETTE = ['#4C7EA8','#E8963D','#2F6B4F','#8E7CC3','#C0533E','#7C8B99'];
+const EXPENSE_CATEGORIES = ['Subscription','Bill','Rent/Mortgage','Utilities','Insurance','Groceries','Dining out','Transport','Childcare','Health & Fitness','Shopping','Entertainment','Other'];
 function normalizeCategory(str){
   const trimmed = String(str||'').trim();
   if(!trimmed) return 'Other';
@@ -1385,20 +1395,39 @@ function renderBudget(){
         <span class="group-name">${escAttr(cat)}</span>
         <span class="group-total">${fmtMoney(subtotal)}/mo</span>
       </td></tr>`;
-      const itemRows = items.map(x=>`<tr data-id="${x.id}">
+      const itemRows = items.map(x=>{
+        const isKnownCat = EXPENSE_CATEGORIES.includes(x.category);
+        const catOptions = EXPENSE_CATEGORIES.map(cat=>`<option value="${cat}" ${x.category===cat?'selected':''}>${cat}</option>`).join('')
+          + `<option value="__custom__" ${!isKnownCat?'selected':''}>+ Custom</option>`;
+        return `<tr data-id="${x.id}">
         <td><input class="cell-input text-cell" data-field="name" value="${escAttr(x.name)}"></td>
         <td><input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${x.amount}"></td>
-        <td><input class="cell-input tag-input" data-field="category" list="expense-category-suggestions" value="${escAttr(x.category)}" style="background:${color}22; color:${color};"></td>
+        <td>
+          <select class="cell-input tag-select" data-field="category-select" style="background:${color}22; color:${color};">${catOptions}</select>
+          <input class="cell-input" data-field="category-custom" type="text" value="${escAttr(x.category)}" placeholder="Category name" style="display:${isKnownCat?'none':'block'}; margin-top:4px;">
+        </td>
         <td><button class="row-delete" data-del="${x.id}">✕</button></td>
-      </tr>`).join('');
+      </tr>`;
+      }).join('');
       return headerRow + itemRows;
     }).join('');
     ewrap.innerHTML = `<table><thead><tr><th>Name</th><th>£ / mo</th><th>Category</th><th></th></tr></thead><tbody>${bodyRows}</tbody></table>`;
-    ewrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
-      const id=inp.closest('tr').dataset.id; const item=STATE.expenses.find(x=>x.id===id); const field=inp.dataset.field;
-      if(field==='category') item[field] = normalizeCategory(inp.value);
-      else item[field] = field==='name' ? inp.value : Number(inp.value)||0;
-      saveData(); renderAll();
+    ewrap.querySelectorAll('input, select').forEach(el=>el.addEventListener('change', ()=>{
+      const id=el.closest('tr').dataset.id; const item=STATE.expenses.find(x=>x.id===id); const field=el.dataset.field;
+      if(field==='category-select'){
+        if(el.value==='__custom__'){
+          const customInput = el.parentElement.querySelector('[data-field="category-custom"]');
+          if(customInput){ customInput.style.display='block'; customInput.focus(); }
+        } else {
+          item.category = normalizeCategory(el.value); saveData(); renderAll();
+        }
+      } else if(field==='category-custom'){
+        item.category = normalizeCategory(el.value); saveData(); renderAll();
+      } else if(field==='name'){
+        item.name = el.value; saveData(); renderAll();
+      } else if(field==='amount'){
+        item.amount = Number(el.value)||0; saveData(); renderAll();
+      }
     }));
     ewrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.expenses = STATE.expenses.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
@@ -1488,10 +1517,17 @@ document.getElementById('add-income-form').addEventListener('submit', e=>{
   });
   f.reset(); saveData(); renderAll();
 });
+document.getElementById('expense-category-select').addEventListener('change', e=>{
+  const customInput = document.getElementById('expense-category-custom');
+  if(e.target.value === '__custom__'){ customInput.style.display = ''; customInput.focus(); }
+  else { customInput.style.display = 'none'; customInput.value = ''; }
+});
 document.getElementById('add-expense-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:normalizeCategory(f.category.value)});
-  f.reset(); saveData(); renderAll();
+  const rawCategory = f.category.value === '__custom__' ? f.categoryCustom.value : f.category.value;
+  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:normalizeCategory(rawCategory)});
+  f.reset(); document.getElementById('expense-category-custom').style.display = 'none';
+  saveData(); renderAll();
 });
 document.getElementById('add-savings-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
@@ -1537,6 +1573,10 @@ function renderDashboard(){
   const totalDebt = STATE.debts.reduce((s,d)=>s+Number(d.balance||0),0);
   const current = computeSchedule(STATE.debts, extra, strat);
   const debtFreeDate = addMonths(new Date(), current.months);
+  const avalanche = strat==='avalanche' ? current : computeSchedule(STATE.debts, extra, 'avalanche');
+  const snowball = strat==='snowball' ? current : computeSchedule(STATE.debts, extra, 'snowball');
+  const methodInterestDiff = Math.round(Math.abs(avalanche.totalInterest - snowball.totalInterest));
+  const cheaperMethod = avalanche.totalInterest <= snowball.totalInterest ? 'Avalanche' : 'Snowball';
 
   const basicStats = `
     <div class="grid-cards">
@@ -1555,6 +1595,8 @@ function renderDashboard(){
         <div class="eyebrow">Projected debt-free date${isUnlocked() ? ` · ${strat==='avalanche'?'Avalanche':'Snowball'} method` : ''}</div>
         <h2>${current.maxedOut ? 'Add an extra payment to see a payoff date' : fmtMonthYear(debtFreeDate)}</h2>
         <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
+        ${!current.maxedOut ? `<p class="interest-teaser">Total interest over this plan: <strong>${fmtMoney(current.totalInterest)}</strong></p>` : ''}
+        ${(!isUnlocked() && !current.maxedOut && methodInterestDiff > 0) ? `<p class="interest-teaser highlight">💡 Switching to ${cheaperMethod} could save you ${fmtMoney(methodInterestDiff)} in interest — <a href="${STRIPE_PAYMENT_LINK}">unlock to compare</a></p>` : ''}
         <div class="free-extra-control">
           <label for="free-extra-input">Try a different extra payment</label>
           <div class="free-extra-row">
@@ -1591,8 +1633,6 @@ function renderDashboard(){
     return;
   }
 
-  const avalanche = strat==='avalanche' ? current : computeSchedule(STATE.debts, extra, 'avalanche');
-  const snowball = strat==='snowball' ? current : computeSchedule(STATE.debts, extra, 'snowball');
   const pct = STATE.settings.savingsProtectPct;
   const deficit = surp <= 0;
 
