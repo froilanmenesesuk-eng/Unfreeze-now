@@ -1690,8 +1690,20 @@ function renderDashboard(){
   const slider = document.getElementById('split-slider');
   if(slider){
     slider.addEventListener('input', ()=>{
-      STATE.settings.savingsProtectPct = Number(slider.value);
+      const newPct = Number(slider.value);
+      STATE.settings.savingsProtectPct = newPct;
       STATE.settings.paymentMode = 'auto';
+      const newExtra = effectiveExtraPayment();
+      const newToSavings = savingsFromSplit();
+      const toDebtLabel = document.querySelector('.split-slider-labels .to-debt');
+      const toSavingsLabel = document.querySelector('.split-slider-labels .to-savings');
+      if(toDebtLabel) toDebtLabel.textContent = `← More to debt (${100-newPct}%)`;
+      if(toSavingsLabel) toSavingsLabel.textContent = `More to savings (${newPct}%) →`;
+      const amountSpans = document.querySelectorAll('.split-amounts span');
+      if(amountSpans[0]) amountSpans[0].textContent = `${fmtMoney(newExtra)} / mo to debt`;
+      if(amountSpans[1]) amountSpans[1].textContent = `${fmtMoney(newToSavings)} / mo to savings`;
+    });
+    slider.addEventListener('change', ()=>{
       saveData(); renderAll();
     });
   }
