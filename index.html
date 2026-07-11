@@ -88,6 +88,9 @@
   .stat-label{font-size:12px; color:var(--slate); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px;}
   .stat-value{font-size:21px; font-weight:600; font-family:var(--font-mono);}
   .stat-value.accent{color:var(--glacier);} .stat-value.good{color:var(--evergreen);} .stat-value.warn{color:var(--thaw);} .stat-value.bad{color:var(--alert);}
+  .stat-card.clickable{cursor:pointer; transition:border-color .15s, box-shadow .15s;}
+  .stat-card.clickable:hover{border-color:var(--glacier); box-shadow:0 2px 10px rgba(76,126,168,0.14);}
+  .stat-card.clickable:focus-visible{outline:2px solid var(--glacier); outline-offset:2px;}
   .income-hero{margin-bottom:18px;}
   .income-total-card{padding:26px 28px; border:1px solid var(--border);}
   .income-total-card .stat-label{font-size:13px;}
@@ -174,6 +177,7 @@
   .chart-frame{position:relative; width:100%;}
   .chart-frame canvas{position:absolute; inset:0; width:100% !important; height:100% !important;}
   .rate-change-note{font-size:11.5px; color:var(--slate); margin-top:3px; white-space:nowrap;}
+  .mini-badge{display:inline-block; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--alert); background:var(--alert-soft); border-radius:999px; padding:2px 8px; margin-left:8px; vertical-align:middle;}
   .link-btn{background:none; border:none; padding:0; color:var(--glacier); font-size:11.5px; text-decoration:underline; cursor:pointer;}
   .link-btn:hover{color:#3E6C90;}
   .tag-select{border:1px solid transparent; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; width:100%; cursor:pointer;}
@@ -241,6 +245,11 @@
   input[type=range]{width:100%; accent-color:var(--glacier);}
   .split-amounts{display:flex; justify-content:space-between; margin-top:10px; font-family:var(--font-mono); font-size:15px; font-weight:600;}
   .mode-note{font-size:12.5px; color:var(--slate); margin-top:10px;}
+  .about-copy{font-size:14px; color:var(--ink); line-height:1.65; margin:0 0 12px;}
+  .about-copy:last-child{margin-bottom:0;}
+  .about-steps{margin:0; padding-left:20px; display:flex; flex-direction:column; gap:10px;}
+  .about-steps li{font-size:13.5px; color:var(--ink); line-height:1.55;}
+  .purchase-email-note{margin-top:6px; font-size:11px; color:#8FAFC2; word-break:break-all;}
   .warn-banner{background:var(--alert-soft); color:var(--alert); border-radius:var(--radius-sm); padding:10px 14px; font-size:13px; font-weight:600; margin-bottom:14px;}
 
   .schedule-toggle-btn{margin-top:10px;}
@@ -313,6 +322,7 @@
       <button class="nav-btn" data-view="income"><span class="nav-icon">◒</span>Income</button>
       <button class="nav-btn" data-view="budget"><span class="nav-icon">◈</span>Budget</button>
       <button class="nav-btn" data-view="plan"><span class="nav-icon">↘</span>Payoff Plan</button>
+      <button class="nav-btn" data-view="about"><span class="nav-icon">ⓘ</span>About &amp; Help</button>
     </nav>
     <div class="plan-badge" id="plan-badge"></div>
     <div class="sidebar-footer">
@@ -345,6 +355,7 @@
     <section id="view-debts" class="view">
       <div class="card">
         <div class="section-title">Add a debt <span class="help-tip" data-tip="Balance is what you currently owe. APR is the yearly interest rate — check your statement or provider app. Minimum payment is the smallest amount your provider requires each month; paying only that is what keeps debt around longest.">?</span></div>
+        <div id="debts-summary"></div>
         <form id="add-debt-form" class="inline-form">
           <input name="name" placeholder="Name (e.g. Visa card)" required>
           <input name="balance" type="number" step="0.01" min="0" placeholder="Balance owed" required>
@@ -390,6 +401,7 @@
       <div class="two-col">
         <div class="card">
           <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly. Type any category name — it doesn't have to match a preset list, and Unfreeze groups your list by category automatically, biggest spend first.">?</span></div>
+          <div id="expense-summary"></div>
           <form id="add-expense-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
@@ -434,6 +446,31 @@
     </section>
 
     <section id="view-plan" class="view"></section>
+
+    <section id="view-about" class="view">
+      <div class="card" style="margin-bottom:18px;">
+        <div class="section-title">About Unfreeze</div>
+        <p class="about-copy">Unfreeze is a small, independent debt and budget planner built to do one job well: show you exactly when you'll be debt-free, and how changing one number — an extra payment, a strategy, your budget split — moves that date.</p>
+        <p class="about-copy">There are no accounts, no ads, and no subscriptions. Everything you enter stays on this device in your browser's local storage — nothing is sent to a server, except a one-time payment through Stripe if you choose to unlock the full version. Unfreeze is <strong>£8, once</strong> — not a subscription.</p>
+      </div>
+
+      <div class="card" style="margin-bottom:18px;">
+        <div class="section-title">How to use it</div>
+        <ol class="about-steps">
+          <li><strong>Debts</strong> — add every balance you owe: credit card, loan, overdraft. Balance, APR and minimum payment are all it needs.</li>
+          <li><strong>Income</strong> — add what comes in each month. Tick "Varies monthly" for anything that isn't a fixed salary, and Unfreeze will average your last three logged months.</li>
+          <li><strong>Budget</strong> — track expenses, subscriptions and savings pots. What's left after minimum payments and expenses is the pool split between extra debt payments and savings.</li>
+          <li><strong>Dashboard</strong> — your projected debt-free date, updated live. Drag the money-split slider to see how sending more to debt (or savings) shifts that date.</li>
+          <li><strong>Payoff Plan</strong> — compare Avalanche vs. Snowball, see your attack order, and the full month-by-month schedule.</li>
+        </ol>
+        <p class="mode-note">Free to try: up to 2 debts and 1 income source, with your real debt-free date and extra-payment preview. Unlock for £8 to add unlimited debts and income, plus the full Budget tab and Payoff Plan.</p>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Your account</div>
+        <div id="about-account-info"></div>
+      </div>
+    </section>
 
     <footer class="credit">Unfreeze — break free from debt, on your terms.</footer>
   </main>
@@ -529,7 +566,7 @@ const CURRENCY_SYMBOLS = {USD:'$', GBP:'£', EUR:'€'};
 function defaultData(){
   return {
     debts:[], incomes:[], expenses:[], savings:[],
-    settings:{ strategy:'avalanche', currency:'GBP', paymentMode:'auto', extraPaymentManual:0, savingsProtectPct:50, unlocked:false, lastRateReviewDismissedAt:null }
+    settings:{ strategy:'avalanche', currency:'GBP', paymentMode:'auto', extraPaymentManual:0, savingsProtectPct:50, unlocked:false, lastRateReviewDismissedAt:null, purchaseEmail:null }
   };
 }
 function loadData(){
@@ -605,7 +642,8 @@ function renderSidebarBadge(){
   const el = document.getElementById('plan-badge');
   if(!el) return;
   if(isUnlocked()){
-    el.innerHTML = `<div class="tier" style="color:var(--evergreen);">Full access ✓</div><p>Thanks for supporting Unfreeze — every feature is unlocked on this device.</p>`;
+    const emailLine = STATE.settings.purchaseEmail ? `<p class="purchase-email-note">Unlocked with ${escAttr(STATE.settings.purchaseEmail)}</p>` : '';
+    el.innerHTML = `<div class="tier" style="color:var(--evergreen);">Full access ✓</div><p>Thanks for supporting Unfreeze — every feature is unlocked on this device.</p>${emailLine}`;
   } else {
     el.innerHTML = `<div class="tier">Free preview</div><p>Try up to ${FREE_DEBT_LIMIT} debts and ${FREE_INCOME_LIMIT} income source free, with your real debt-free date. Unlock for unlimited debts, full budgeting and the payoff plan.</p><a class="unlock-btn" style="display:block; text-align:center; margin-top:10px; padding:9px 0; font-size:13px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a>`;
   }
@@ -638,6 +676,7 @@ async function checkForReturningPayment(){
     const data = await res.json();
     if(data.paid){
       STATE.settings.unlocked = true;
+      if(data.email) STATE.settings.purchaseEmail = data.email;
       saveData();
       paymentBanner = {type:'success', message:'Payment confirmed — full access unlocked on this device.'};
     } else {
@@ -684,6 +723,7 @@ document.getElementById('restore-form').addEventListener('submit', async (e)=>{
     const data = await res.json();
     if(data.paid){
       STATE.settings.unlocked = true;
+      STATE.settings.purchaseEmail = email;
       saveData();
       status.className = 'mode-note success';
       status.textContent = 'Payment found — unlocking…';
@@ -1172,7 +1212,8 @@ const titles = {
   debts:['Debts','Every balance you owe, in one place.'],
   income:['Income','Every pound coming in, tracked in one place.'],
   budget:['Budget','Expenses, subscriptions, and savings.'],
-  plan:['Payoff Plan','See exactly when you will be debt-free.']
+  plan:['Payoff Plan','See exactly when you will be debt-free.'],
+  about:['About & Help','What Unfreeze is, how to use it, and your account.']
 };
 function switchView(view){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -1194,14 +1235,21 @@ function renderDebts(){
     if(atDebtCap) debtNotice.innerHTML = capNoticeHTML(`You've added your ${FREE_DEBT_LIMIT} free debts — unlock to add more.`);
   }
 
+  const summaryEl = document.getElementById('debts-summary');
   const wrap = document.getElementById('debts-table-wrap');
   if(STATE.debts.length===0){
+    if(summaryEl) summaryEl.innerHTML = '';
     wrap.innerHTML = `<div class="empty-state"><h3>No debts yet</h3><p>Add your first debt above to start building your payoff plan.</p></div>`;
     return;
   }
+  if(summaryEl){
+    const totalOwed = STATE.debts.reduce((s,d)=>s+Number(d.balance||0),0);
+    summaryEl.innerHTML = `<div class="savings-summary-line"><span class="summary-total">${fmtMoney(totalOwed)}</span> owed across ${STATE.debts.length} debt${STATE.debts.length===1?'':'s'} · ${fmtMoney(totalMin())}/mo in minimum payments. This drives your Dashboard's projected debt-free date.</div>`;
+  }
+  const maxApr = STATE.debts.length>1 ? Math.max(...STATE.debts.map(d=>Number(d.apr)||0)) : null;
   let rows = STATE.debts.map(d=>`
     <tr data-id="${d.id}">
-      <td><input class="cell-input text-cell" data-field="name" value="${escAttr(d.name)}"></td>
+      <td><input class="cell-input text-cell" data-field="name" value="${escAttr(d.name)}">${maxApr!==null && Number(d.apr)===maxApr ? '<span class="mini-badge" title="Avalanche pays this one first">Highest APR</span>' : ''}</td>
       <td><input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${d.balance}"></td>
       <td>
         <input class="cell-input" data-field="apr" type="number" step="0.01" min="0" value="${d.apr}">
@@ -1376,10 +1424,15 @@ function renderExpenseDonut(){
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
 function renderBudget(){
+  const expenseSummaryEl = document.getElementById('expense-summary');
   const ewrap = document.getElementById('expense-table-wrap');
   if(STATE.expenses.length===0){
+    if(expenseSummaryEl) expenseSummaryEl.innerHTML = '';
     ewrap.innerHTML = `<div class="empty-state"><h3>Nothing tracked</h3><p>Add bills and subscriptions so your budget reflects real life.</p></div>`;
   } else {
+    if(expenseSummaryEl){
+      expenseSummaryEl.innerHTML = `<div class="savings-summary-line"><span class="summary-total">${fmtMoney(totalExpenses())}</span>/mo across ${STATE.expenses.length} item${STATE.expenses.length===1?'':'s'}. This is subtracted from your income on the Dashboard.</div>`;
+    }
     const groups = {};
     STATE.expenses.forEach(x=>{ const cat = normalizeCategory(x.category); (groups[cat] = groups[cat]||[]).push(x); });
     const sortedCats = Object.keys(groups).sort((a,b)=>{
@@ -1556,9 +1609,9 @@ function renderDashboard(){
     el.innerHTML = `
       ${bannerHTML}
       <div class="grid-cards">
-        <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-value">${fmtMoney(income)}</div></div>
-        <div class="stat-card"><div class="stat-label">Monthly expenses</div><div class="stat-value">${fmtMoney(expenses)}</div></div>
-        <div class="stat-card"><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
+        <div class="stat-card clickable" onclick="switchView('income')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('income');}" role="button" tabindex="0"><div class="stat-label">Monthly income</div><div class="stat-value">${fmtMoney(income)}</div></div>
+        <div class="stat-card clickable" onclick="switchView('budget')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('budget');}" role="button" tabindex="0"><div class="stat-label">Monthly expenses</div><div class="stat-value">${fmtMoney(expenses)}</div></div>
+        <div class="stat-card clickable" onclick="switchView('budget')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('budget');}" role="button" tabindex="0"><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
       </div>
       <div class="card"><div class="empty-state">
         <h3>Add your first debt to see your payoff plan</h3>
@@ -1579,13 +1632,14 @@ function renderDashboard(){
   const methodInterestDiff = Math.round(Math.abs(avalanche.totalInterest - snowball.totalInterest));
   const cheaperMethod = avalanche.totalInterest <= snowball.totalInterest ? 'Avalanche' : 'Snowball';
 
+  const clickableStat = (view)=> `onclick="switchView('${view}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('${view}');}" role="button" tabindex="0"`;
   const basicStats = `
     <div class="grid-cards">
-      <div class="stat-card"><div class="stat-label">Total debt</div><div class="stat-value">${fmtMoney(totalDebt)}</div></div>
-      <div class="stat-card"><div class="stat-label">Monthly income</div><div class="stat-value accent">${fmtMoney(income)}</div></div>
-      <div class="stat-card"><div class="stat-label">Expenses &amp; subs</div><div class="stat-value">${fmtMoney(expenses)}</div></div>
-      <div class="stat-card"><div class="stat-label">Money left to work with</div><div class="stat-value ${surp>=0?'good':'bad'}">${fmtMoney(surp)}</div></div>
-      <div class="stat-card"><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
+      <div class="stat-card clickable" ${clickableStat('debts')}><div class="stat-label">Total debt</div><div class="stat-value">${fmtMoney(totalDebt)}</div></div>
+      <div class="stat-card clickable" ${clickableStat('income')}><div class="stat-label">Monthly income</div><div class="stat-value accent">${fmtMoney(income)}</div></div>
+      <div class="stat-card clickable" ${clickableStat('budget')}><div class="stat-label">Expenses &amp; subs</div><div class="stat-value">${fmtMoney(expenses)}</div></div>
+      <div class="stat-card"><div class="stat-label">Money left to work with <span class="help-tip" data-tip="Income minus your debt minimum payments minus your tracked expenses. This is the pool the slider below splits between extra debt payments and savings.">?</span></div><div class="stat-value ${surp>=0?'good':'bad'}">${fmtMoney(surp)}</div></div>
+      <div class="stat-card clickable" ${clickableStat('budget')}><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
     </div>
     ${!isUnlocked() ? `<p class="mode-note" style="margin-top:-10px; margin-bottom:18px;">Expenses aren't included yet — unlock Budget to see your full picture.</p>` : ''}`;
 
@@ -1644,7 +1698,7 @@ function renderDashboard(){
 
     <div class="two-col" style="margin-bottom:18px;">
       <div class="card">
-        <div class="section-title">Your money split</div>
+        <div class="section-title">Your money split <span class="help-tip" data-tip="Drag to choose how your leftover money (income minus minimums and expenses) splits between extra debt payments and savings each month. Your minimum payments and tracked expenses are always covered first — this only moves what's left over.">?</span></div>
         ${deficit ? `<div class="warn-banner">Your minimum payments and expenses add up to more than your income. Add income or trim expenses in the Budget tab to free up money for debt and savings.</div>` : ''}
         <div class="split-slider-wrap">
           <div class="split-slider-labels">
@@ -1661,7 +1715,7 @@ function renderDashboard(){
         <canvas id="splitDoughnut" height="170" style="margin-top:14px;"></canvas>
       </div>
       <div class="card">
-        <div class="section-title">Avalanche vs. snowball</div>
+        <div class="section-title">Avalanche vs. snowball <span class="help-tip" data-tip="Avalanche pays your highest-interest debt first — mathematically the cheapest route. Snowball pays your smallest balance first — some people find the quick wins easier to stick with. Both use the same extra payment amount; only the order changes. Change your strategy on the Payoff Plan tab.">?</span></div>
         ${comparisonCalloutHTML(avalanche, snowball)}
         ${comparisonTableHTML(avalanche, snowball)}
         <canvas id="dashCompareChart" height="90"></canvas>
@@ -1874,7 +1928,7 @@ function renderPlan(){
       ${ordersMatch ? `<p class="mode-note" style="margin-top:12px;">Avalanche and Snowball land on the same attack order and payoff date with your current debts — your highest-APR debt is also your smallest balance, so both methods agree. Switching won't change the numbers below, but you can still pick either.</p>` : ''}
       <div style="margin-top:16px;">
         ${mode==='auto' ? `
-          <p class="mode-note">Extra payment is <strong>${fmtMoney(extra)} / mo</strong>, based on your Budget split. <a href="#" id="switch-manual">Set a custom amount instead</a> or adjust the slider on the Dashboard.</p>
+          <p class="mode-note">Extra payment is <strong>${fmtMoney(extra)} / mo</strong>, based on your Budget split. <a href="#" id="switch-manual">Set a custom amount instead</a> or <a href="#" id="plan-goto-dashboard">adjust the slider on the Dashboard</a>.</p>
         ` : `
           <div class="field-inline">
             Extra payment / mo
@@ -1914,6 +1968,8 @@ function renderPlan(){
   if(toManual) toManual.addEventListener('click', e=>{ e.preventDefault(); STATE.settings.extraPaymentManual = Math.round(extra); STATE.settings.paymentMode='manual'; saveData(); renderAll(); });
   const toAuto = document.getElementById('switch-auto');
   if(toAuto) toAuto.addEventListener('click', e=>{ e.preventDefault(); STATE.settings.paymentMode='auto'; saveData(); renderAll(); });
+  const goDash = document.getElementById('plan-goto-dashboard');
+  if(goDash) goDash.addEventListener('click', e=>{ e.preventDefault(); switchView('dashboard'); });
   const toggleBtn = document.getElementById('toggle-schedule-btn');
   if(toggleBtn) toggleBtn.addEventListener('click', ()=>{ showFullSchedule=!showFullSchedule; renderPlan(); });
 
@@ -1970,6 +2026,44 @@ document.getElementById('reset-btn').addEventListener('click', ()=>{
   }
 });
 
+/* ==================== ABOUT / ACCOUNT ==================== */
+function renderAboutAccountInfo(){
+  const el = document.getElementById('about-account-info');
+  if(!el) return;
+  if(isUnlocked()){
+    const email = STATE.settings.purchaseEmail;
+    el.innerHTML = `
+      ${email
+        ? `<p style="margin:0 0 10px;">Unlocked with <strong>${escAttr(email)}</strong>.</p>
+           <p class="mode-note" style="margin-top:0;">Use this email on the "Already paid? Restore purchase" screen if you switch devices, clear your browser, or reinstall.</p>
+           <button type="button" class="link-btn" id="edit-purchase-email-btn">Change email</button>`
+        : `<p style="margin:0 0 10px;">Full access is unlocked on this device, but there's no email saved for it yet.</p>
+           <p class="mode-note" style="margin-top:0;">Add the email you used at checkout so you're reminded which one to use if you switch devices.</p>`
+      }
+      <div id="purchase-email-edit-row" style="display:${email ? 'none' : 'flex'}; gap:8px; margin-top:${email ? '0' : '10px'}; flex-wrap:wrap;">
+        <input type="email" id="purchase-email-input" placeholder="you@example.com" value="${email ? escAttr(email) : ''}" style="flex:1; min-width:200px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:9px 11px; font-size:13.5px;">
+        <button type="button" class="btn btn-primary" id="save-purchase-email-btn">Save</button>
+      </div>`;
+    const editBtn = document.getElementById('edit-purchase-email-btn');
+    const row = document.getElementById('purchase-email-edit-row');
+    if(editBtn) editBtn.addEventListener('click', ()=>{
+      row.style.display = 'flex';
+      document.getElementById('purchase-email-input').focus();
+    });
+    const saveBtn = document.getElementById('save-purchase-email-btn');
+    if(saveBtn) saveBtn.addEventListener('click', ()=>{
+      const val = document.getElementById('purchase-email-input').value.trim();
+      STATE.settings.purchaseEmail = val || null;
+      saveData(); renderAll();
+    });
+  } else {
+    el.innerHTML = `
+      <p style="margin:0 0 10px;">You haven't unlocked full access on this device yet.</p>
+      <a class="unlock-btn" href="${STRIPE_PAYMENT_LINK}">Unlock for £8 →</a>
+      <button type="button" class="restore-link" data-action="restore-purchase">Already paid? Restore purchase</button>`;
+  }
+}
+
 /* ==================== MASTER RENDER ==================== */
 function renderAll(){
   renderDebts();
@@ -1978,6 +2072,7 @@ function renderAll(){
   applyBudgetLock();
   renderDashboard();
   renderSidebarBadge();
+  renderAboutAccountInfo();
   const planView = document.getElementById('view-plan');
   if(planView.classList.contains('active')) renderPlan();
 }
