@@ -348,12 +348,12 @@
           <input name="minPayment" type="number" step="0.01" min="0" placeholder="Minimum payment / mo" required>
           <button class="btn btn-primary" type="submit">Add debt</button>
         </form>
+        <div id="debt-cap-notice" style="display:none;"></div>
         <div id="debts-table-wrap" class="table-wrap"></div>
       </div>
     </section>
 
     <section id="view-income" class="view">
-      <div class="locked-wrap" id="income-locked-wrap">
       <div class="income-hero two-col">
         <div class="stat-card income-total-card">
           <div class="stat-label">Total monthly income</div>
@@ -376,9 +376,8 @@
           </label>
           <button class="btn btn-primary" type="submit">Add income</button>
         </form>
+        <div id="income-cap-notice" style="display:none;"></div>
         <div id="income-table-wrap" class="table-wrap"></div>
-      </div>
-      <div class="locked-overlay" id="income-overlay" style="display:none;"></div>
       </div>
     </section>
 
@@ -573,6 +572,13 @@ function lerpColor(a,b,t){
 const STRIPE_PAYMENT_LINK = 'https://buy.stripe.com/test_28EdR83H4aZS3LkggX18c00';
 
 function isUnlocked(){ return !!STATE.settings.unlocked; }
+const FREE_DEBT_LIMIT = 2;
+const FREE_INCOME_LIMIT = 1;
+function canAddDebt(){ return isUnlocked() || STATE.debts.length < FREE_DEBT_LIMIT; }
+function canAddIncome(){ return isUnlocked() || STATE.incomes.length < FREE_INCOME_LIMIT; }
+function capNoticeHTML(message){
+  return `<div class="nudge-banner"><span>${message}</span> <a class="unlock-btn" style="padding:6px 14px; font-size:12px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a></div>`;
+}
 
 function paywallCardHTML({compact=false} = {}){
   return `
@@ -592,12 +598,12 @@ function renderSidebarBadge(){
   if(isUnlocked()){
     el.innerHTML = `<div class="tier" style="color:var(--evergreen);">Full access ✓</div><p>Thanks for supporting Unfreeze — every feature is unlocked on this device.</p>`;
   } else {
-    el.innerHTML = `<div class="tier">Free preview</div><p>Debts are free to track, and you can preview your debt-free date. Budgeting and the full payoff plan unlock with a one-time £8 payment.</p><a class="unlock-btn" style="display:block; text-align:center; margin-top:10px; padding:9px 0; font-size:13px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a>`;
+    el.innerHTML = `<div class="tier">Free preview</div><p>Try up to ${FREE_DEBT_LIMIT} debts and ${FREE_INCOME_LIMIT} income source free, with your real debt-free date. Unlock for unlimited debts, full budgeting and the payoff plan.</p><a class="unlock-btn" style="display:block; text-align:center; margin-top:10px; padding:9px 0; font-size:13px;" href="${STRIPE_PAYMENT_LINK}">Unlock — £8</a>`;
   }
 }
 
 function applyBudgetLock(){
-  ['budget-overlay','income-overlay'].forEach(id=>{
+  ['budget-overlay'].forEach(id=>{
     const overlay = document.getElementById(id);
     if(!overlay) return;
     if(isUnlocked()){
@@ -1169,6 +1175,15 @@ function switchView(view){
 
 /* ==================== DEBTS ==================== */
 function renderDebts(){
+  const atDebtCap = !canAddDebt();
+  const debtForm = document.getElementById('add-debt-form');
+  const debtNotice = document.getElementById('debt-cap-notice');
+  if(debtForm) debtForm.style.display = atDebtCap ? 'none' : '';
+  if(debtNotice){
+    debtNotice.style.display = atDebtCap ? 'block' : 'none';
+    if(atDebtCap) debtNotice.innerHTML = capNoticeHTML(`You've added your ${FREE_DEBT_LIMIT} free debts — unlock to add more.`);
+  }
+
   const wrap = document.getElementById('debts-table-wrap');
   if(STATE.debts.length===0){
     wrap.innerHTML = `<div class="empty-state"><h3>No debts yet</h3><p>Add your first debt above to start building your payoff plan.</p></div>`;
@@ -1202,7 +1217,9 @@ function renderDebts(){
   }));
 }
 document.getElementById('add-debt-form').addEventListener('submit', e=>{
-  e.preventDefault(); const f = e.target;
+  e.preventDefault();
+  if(!canAddDebt()) return;
+  const f = e.target;
   const balance = Number(f.balance.value)||0;
   STATE.debts.push({id:uid(), name:f.name.value.trim()||'Untitled debt', balance, originalBalance:balance, apr:Number(f.apr.value)||0, minPayment:Number(f.minPayment.value)||0});
   f.reset(); saveData(); renderAll();
@@ -1212,6 +1229,15 @@ document.getElementById('add-debt-form').addEventListener('submit', e=>{
 function renderIncome(){
   const totalEl = document.getElementById('income-total-value');
   if(totalEl) totalEl.textContent = fmtMoney(totalIncome());
+
+  const atIncomeCap = !canAddIncome();
+  const incomeForm = document.getElementById('add-income-form');
+  const incomeNotice = document.getElementById('income-cap-notice');
+  if(incomeForm) incomeForm.style.display = atIncomeCap ? 'none' : '';
+  if(incomeNotice){
+    incomeNotice.style.display = atIncomeCap ? 'block' : 'none';
+    if(atIncomeCap) incomeNotice.innerHTML = capNoticeHTML(`You've added your ${FREE_INCOME_LIMIT} free income source — unlock to add more and build your full budget.`);
+  }
 
   const iwrap = document.getElementById('income-table-wrap');
   if(STATE.incomes.length===0){
@@ -1451,7 +1477,9 @@ function renderBudget(){
   renderExpenseDonut();
 }
 document.getElementById('add-income-form').addEventListener('submit', e=>{
-  e.preventDefault(); const f=e.target;
+  e.preventDefault();
+  if(!canAddIncome()) return;
+  const f=e.target;
   const isVariable = f.variable.checked;
   const amt = Number(f.amount.value)||0;
   STATE.incomes.push({
@@ -1517,7 +1545,8 @@ function renderDashboard(){
       <div class="stat-card"><div class="stat-label">Expenses &amp; subs</div><div class="stat-value">${fmtMoney(expenses)}</div></div>
       <div class="stat-card"><div class="stat-label">Money left to work with</div><div class="stat-value ${surp>=0?'good':'bad'}">${fmtMoney(surp)}</div></div>
       <div class="stat-card"><div class="stat-label">Savings balance</div><div class="stat-value">${fmtMoney(sBalance)}</div></div>
-    </div>`;
+    </div>
+    ${!isUnlocked() ? `<p class="mode-note" style="margin-top:-10px; margin-bottom:18px;">Expenses aren't included yet — unlock Budget to see your full picture.</p>` : ''}`;
 
   const headlineCardHTML = `
     <div class="headline-card">
