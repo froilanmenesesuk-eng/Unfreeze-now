@@ -1598,14 +1598,14 @@ function renderDashboard(){
         <p>${current.months} months from now, putting ${fmtMoney(extra)} extra / month toward debt on top of ${fmtMoney(minPay)} in minimums.</p>
         ${!current.maxedOut ? `<p class="interest-teaser">Total interest over this plan: <strong>${fmtMoney(current.totalInterest)}</strong></p>` : ''}
         ${(!isUnlocked() && !current.maxedOut && methodInterestDiff > 0) ? `<p class="interest-teaser highlight">💡 Switching to ${cheaperMethod} could save you ${fmtMoney(methodInterestDiff)} in interest — <a href="${STRIPE_PAYMENT_LINK}">unlock to compare</a></p>` : ''}
-        <div class="free-extra-control">
+        ${!isUnlocked() ? `<div class="free-extra-control">
           <label for="free-extra-input">Try a different extra payment</label>
           <div class="free-extra-row">
             <span>£</span>
             <input type="number" min="0" step="10" id="free-extra-input" value="${Math.round(extra)}">
             <span>/mo extra</span>
           </div>
-        </div>
+        </div>` : ''}
       </div>
     </div>`;
   function wireHeadlineCard(){
