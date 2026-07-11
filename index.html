@@ -422,6 +422,29 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="payslip-modal-backdrop" style="display:none;">
+  <div class="card modal-card">
+    <div class="section-title">Remind me on payday</div>
+    <p class="mode-note" style="margin-top:-6px;" id="payslip-modal-income-name"></p>
+    <form id="payslip-form">
+      <div class="field-inline" style="margin-bottom:12px;">
+        <span style="width:130px;">Next payslip date</span>
+        <input type="date" id="payslip-date-input" required>
+      </div>
+      <div class="field-inline" style="margin-bottom:6px;">
+        <span style="width:130px;">Repeats every</span>
+        <input type="number" min="1" step="1" id="payslip-repeat-input" placeholder="days, e.g. 30">
+      </div>
+      <p class="mode-note" style="margin-top:0;">Optional — if your pay date is roughly regular, set how many days between payslips and the reminder will automatically reschedule each time you update your income.</p>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn" id="payslip-clear-btn">Clear</button>
+        <button type="button" class="btn" id="payslip-cancel-btn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 /* ==================== DATA LAYER ==================== */
 const LS_KEY = 'unfreeze_planner_v1';
@@ -454,10 +477,13 @@ function fmtMoney(n){
   return (neg?'-':'') + sym + val;
 }
 function fmtMonthYear(date){ return date.toLocaleDateString(undefined,{month:'long', year:'numeric'}); }
+function fmtDateShort(date){ return date.toLocaleDateString(undefined,{day:'numeric', month:'short', year:'numeric'}); }
 function escAttr(s){ return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function addMonths(date, n){ const d = new Date(date); d.setMonth(d.getMonth()+n); return d; }
+function addDays(date, n){ const d = new Date(date); d.setDate(d.getDate()+n); return d; }
 function monthsBetween(from, to){ return (to.getFullYear()-from.getFullYear())*12 + (to.getMonth()-from.getMonth()); }
 function parseDateOnly(str){ const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); }
+function toDateInputValue(date){ const m=String(date.getMonth()+1).padStart(2,'0'); const d=String(date.getDate()).padStart(2,'0'); return `${date.getFullYear()}-${m}-${d}`; }
 function effectiveAprAt(d, month){
   if(d._changeMonth!=null && month>=d._changeMonth && d.futureApr!=null && d.futureApr!==''){
     return Number(d.futureApr)||0;
@@ -618,8 +644,16 @@ document.addEventListener('click', (e)=>{
     return;
   }
   if(e.target.id === 'dismiss-rate-review-btn'){
-    STATE.settings.lastRateReviewDismissedAt = new Date().toISOString().slice(0,10);
+    STATE.settings.lastRateReviewDismissedAt = toDateInputValue(new Date());
     saveData(); renderAll();
+    return;
+  }
+  if(e.target.id === 'payslip-cancel-btn'){ closePayslipModal(); return; }
+  if(e.target.id === 'payslip-modal-backdrop'){ closePayslipModal(); return; }
+  if(e.target.id === 'payslip-clear-btn'){
+    const inc = STATE.incomes.find(i=>i.id===payslipModalIncomeId);
+    if(inc){ delete inc.nextPayslipDate; delete inc.payCycleDays; saveData(); renderAll(); }
+    closePayslipModal();
     return;
   }
 });
@@ -633,6 +667,33 @@ document.getElementById('rate-change-form').addEventListener('submit', (e)=>{
   debt.futureApr = aprVal==='' ? null : Number(aprVal);
   saveData(); renderAll();
   closeRateModal();
+});
+
+/* ==================== VARIABLE INCOME / PAYSLIP REMINDER ==================== */
+let payslipModalIncomeId = null;
+function openPayslipModal(incomeId){
+  const inc = STATE.incomes.find(i=>i.id===incomeId);
+  if(!inc) return;
+  payslipModalIncomeId = incomeId;
+  document.getElementById('payslip-modal-income-name').textContent = `${inc.source} — currently ${fmtMoney(inc.amount)}/mo`;
+  document.getElementById('payslip-date-input').value = inc.nextPayslipDate || '';
+  document.getElementById('payslip-repeat-input').value = inc.payCycleDays || '';
+  document.getElementById('payslip-modal-backdrop').style.display = 'flex';
+}
+function closePayslipModal(){
+  document.getElementById('payslip-modal-backdrop').style.display = 'none';
+  payslipModalIncomeId = null;
+}
+document.getElementById('payslip-form').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const inc = STATE.incomes.find(i=>i.id===payslipModalIncomeId);
+  if(!inc) return;
+  const dateVal = document.getElementById('payslip-date-input').value;
+  const repeatVal = document.getElementById('payslip-repeat-input').value;
+  inc.nextPayslipDate = dateVal || null;
+  inc.payCycleDays = repeatVal==='' ? null : Number(repeatVal);
+  saveData(); renderAll();
+  closePayslipModal();
 });
 
 /* ==================== BUDGET MATH ==================== */
@@ -668,7 +729,15 @@ function shouldShowRateReviewNudge(){
   if(STATE.debts.length===0) return false;
   const last = STATE.settings.lastRateReviewDismissedAt;
   if(!last) return true;
-  return daysBetween(new Date(last), new Date()) >= 60;
+  const today = new Date(); today.setHours(0,0,0,0);
+  return daysBetween(parseDateOnly(last), today) >= 60;
+}
+function upcomingPayslipReminders(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  return STATE.incomes.filter(inc=>{
+    if(!inc.nextPayslipDate) return false;
+    return daysBetween(today, parseDateOnly(inc.nextPayslipDate)) <= 3;
+  }).map(inc=>({...inc, daysUntil: daysBetween(today, parseDateOnly(inc.nextPayslipDate))}));
 }
 function reminderBannersHTML(){
   let html = '';
@@ -679,6 +748,14 @@ function reminderBannersHTML(){
       return `${escAttr(d.name)} (${when})`;
     }).join(', ');
     html += `<div class="nudge-banner"><span>Rate change coming up for ${items} — do you know the new APR yet? <a href="#" onclick="switchView('debts'); return false;">Update it</a></span></div>`;
+  }
+  const payslips = upcomingPayslipReminders();
+  if(payslips.length){
+    const items = payslips.map(inc=>{
+      const when = inc.daysUntil < 0 ? `overdue by ${Math.abs(inc.daysUntil)} day${Math.abs(inc.daysUntil)===1?'':'s'}` : inc.daysUntil===0 ? 'today' : `in ${inc.daysUntil} day${inc.daysUntil===1?'':'s'}`;
+      return `${escAttr(inc.source)} (${when})`;
+    }).join(', ');
+    html += `<div class="nudge-banner"><span>Payslip due for ${items} — once you know the amount, update it. <a href="#" onclick="switchView('income'); return false;">Go to Income</a></span></div>`;
   }
   if(shouldShowRateReviewNudge()){
     html += `<div class="nudge-banner"><span>It's been a couple of months — worth double-checking your interest rates haven't changed.</span><button type="button" class="nudge-dismiss" id="dismiss-rate-review-btn">Dismiss</button></div>`;
@@ -854,15 +931,35 @@ function renderIncome(){
     iwrap.innerHTML = `<table><thead><tr><th>Source</th><th>£ / mo</th><th></th></tr></thead><tbody>${
       STATE.incomes.map(i=>`<tr data-id="${i.id}">
         <td><input class="cell-input text-cell" data-field="source" value="${escAttr(i.source)}"></td>
-        <td><input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${i.amount}"></td>
+        <td>
+          <input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${i.amount}">
+          <div class="rate-change-note">${i.nextPayslipDate
+            ? `Next payslip ${fmtDateShort(parseDateOnly(i.nextPayslipDate))} · <button type="button" class="link-btn" data-payslip="${i.id}">edit</button>`
+            : `<button type="button" class="link-btn" data-payslip="${i.id}">+ remind me on payday</button>`
+          }</div>
+        </td>
         <td><button class="row-delete" data-del="${i.id}">✕</button></td>
       </tr>`).join('')}</tbody></table>`;
     iwrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.incomes.find(x=>x.id===id); const field=inp.dataset.field;
-      item[field] = field==='source' ? inp.value : Number(inp.value)||0; saveData(); renderAll();
+      item[field] = field==='source' ? inp.value : Number(inp.value)||0;
+      if(field==='amount' && item.nextPayslipDate){
+        const today = new Date(); today.setHours(0,0,0,0);
+        if(daysBetween(today, parseDateOnly(item.nextPayslipDate)) <= 0){
+          if(item.payCycleDays){
+            item.nextPayslipDate = toDateInputValue(addDays(parseDateOnly(item.nextPayslipDate), item.payCycleDays));
+          } else {
+            delete item.nextPayslipDate;
+          }
+        }
+      }
+      saveData(); renderAll();
     }));
     iwrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.incomes = STATE.incomes.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
+    }));
+    iwrap.querySelectorAll('[data-payslip]').forEach(btn=>btn.addEventListener('click', ()=>{
+      openPayslipModal(btn.dataset.payslip);
     }));
   }
   renderIncomeDonut();
