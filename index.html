@@ -398,6 +398,7 @@
 
     <section id="view-budget" class="view">
       <div class="locked-wrap" id="budget-locked-wrap">
+      <div class="card" id="budget-flow-summary" style="margin-bottom:18px;"></div>
       <div class="two-col">
         <div class="card">
           <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly. Type any category name — it doesn't have to match a preset list, and Unfreeze groups your list by category automatically, biggest spend first.">?</span></div>
@@ -421,7 +422,10 @@
               <option value="Other" selected>Other</option>
               <option value="__custom__">+ Type my own…</option>
             </select>
-            <input name="categoryCustom" id="expense-category-custom" type="text" placeholder="Category name" style="display:none;">
+            <span id="add-category-custom-wrap" style="display:none; gap:6px; align-items:center;">
+              <input name="categoryCustom" id="expense-category-custom" type="text" placeholder="Category name">
+              <button type="button" class="link-btn" id="add-category-back-btn">← choose from list</button>
+            </span>
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="expense-table-wrap" class="table-wrap"></div>
@@ -430,7 +434,7 @@
           </div>
         </div>
         <div class="card">
-          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Use the Adjust field to add or subtract money (e.g. 50 or -50) without recalculating the total yourself, and set an optional Goal to see your progress.">?</span></div>
+          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Click 'Adjust / set goal' on a row to add or subtract money (e.g. 50 or -50) without recalculating the total yourself, or set a Goal to see your progress. The Dashboard's money-split slider only suggests how much to save each month — it doesn't move money for you, so update the balance here once you've actually set it aside.">?</span></div>
           <div id="savings-summary"></div>
           <form id="add-savings-form" class="inline-form">
             <input name="name" placeholder="Name" required>
@@ -1423,7 +1427,32 @@ function renderExpenseDonut(){
 }
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
+function renderBudgetFlowSummary(){
+  const el = document.getElementById('budget-flow-summary');
+  if(!el) return;
+  const income = totalIncome(), minPay = totalMin(), expenses = totalExpenses();
+  const left = surplus();
+  if(left <= 0){
+    el.innerHTML = `<div class="section-title" style="margin-bottom:8px;">How this connects to your Dashboard</div>
+      <div class="warn-banner" style="margin-bottom:0;">Your income (${fmtMoney(income)}) doesn't yet cover your minimum debt payments (${fmtMoney(minPay)}) and expenses (${fmtMoney(expenses)}), so there's nothing left to split between debt and savings. Add income or trim expenses to free some up.</div>`;
+    return;
+  }
+  const pct = STATE.settings.savingsProtectPct;
+  const extra = effectiveExtraPayment();
+  const toSavings = savingsFromSplit();
+  const modeNote = STATE.settings.paymentMode === 'manual'
+    ? `based on the custom extra-payment amount set on the Payoff Plan tab`
+    : `based on the ${100-pct}% / ${pct}% split set by the slider`;
+  el.innerHTML = `
+    <div class="section-title" style="margin-bottom:8px;">How this connects to your Dashboard</div>
+    <p class="about-copy">${fmtMoney(income)} income − ${fmtMoney(minPay)} minimum payments − ${fmtMoney(expenses)} expenses = <strong>${fmtMoney(left)}</strong> left over each month.</p>
+    <p class="about-copy" style="margin-bottom:0;">The <a href="#" id="budget-goto-dashboard">Dashboard's money-split slider</a> currently sends <strong>${fmtMoney(extra)}</strong> to extra debt payments and <strong>${fmtMoney(toSavings)}</strong> to savings, ${modeNote}. That split is a plan, not an automatic transfer — once you've actually set money aside, update the balance below so your savings and goal progress reflect reality.</p>`;
+  const link = document.getElementById('budget-goto-dashboard');
+  if(link) link.addEventListener('click', e=>{ e.preventDefault(); switchView('dashboard'); });
+}
+
 function renderBudget(){
+  renderBudgetFlowSummary();
   const expenseSummaryEl = document.getElementById('expense-summary');
   const ewrap = document.getElementById('expense-table-wrap');
   if(STATE.expenses.length===0){
@@ -1457,8 +1486,11 @@ function renderBudget(){
         <td><input class="cell-input text-cell" data-field="name" value="${escAttr(x.name)}"></td>
         <td><input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${x.amount}"></td>
         <td>
-          <select class="cell-input tag-select" data-field="category-select" style="background:${color}22; color:${color};">${catOptions}</select>
-          <input class="cell-input" data-field="category-custom" type="text" value="${escAttr(x.category)}" placeholder="Category name" style="display:${isKnownCat?'none':'block'}; margin-top:4px;">
+          <select class="cell-input tag-select" data-field="category-select" style="display:${isKnownCat?'block':'none'}; background:${color}22; color:${color};">${catOptions}</select>
+          <span data-field="category-custom-wrap" style="display:${isKnownCat?'none':'flex'}; gap:6px; align-items:center;">
+            <input class="cell-input" data-field="category-custom" type="text" value="${escAttr(x.category)}" placeholder="Category name">
+            <button type="button" class="link-btn" data-back-to-select="${x.id}">← list</button>
+          </span>
         </td>
         <td><button class="row-delete" data-del="${x.id}">✕</button></td>
       </tr>`;
@@ -1470,8 +1502,9 @@ function renderBudget(){
       const id=el.closest('tr').dataset.id; const item=STATE.expenses.find(x=>x.id===id); const field=el.dataset.field;
       if(field==='category-select'){
         if(el.value==='__custom__'){
-          const customInput = el.parentElement.querySelector('[data-field="category-custom"]');
-          if(customInput){ customInput.style.display='block'; customInput.focus(); }
+          const wrap = el.parentElement.querySelector('[data-field="category-custom-wrap"]');
+          el.style.display = 'none';
+          if(wrap){ wrap.style.display='flex'; wrap.querySelector('[data-field="category-custom"]').focus(); }
         } else {
           item.category = normalizeCategory(el.value); saveData(); renderAll();
         }
@@ -1485,6 +1518,10 @@ function renderBudget(){
     }));
     ewrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.expenses = STATE.expenses.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
+    }));
+    ewrap.querySelectorAll('[data-back-to-select]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const item = STATE.expenses.find(x=>x.id===btn.dataset.backToSelect);
+      if(item){ item.category = 'Other'; saveData(); renderAll(); }
     }));
   }
 
@@ -1526,7 +1563,8 @@ function renderBudget(){
         <td>
           <input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${s.balance}">
           ${goalHtml}
-          <div class="savings-controls">
+          <div class="rate-change-note"><button type="button" class="link-btn" data-manage="${s.id}">Adjust / set goal</button></div>
+          <div class="savings-controls" data-manage-row="${s.id}" style="display:none;">
             <div class="control-field">
               <span class="control-label">Adjust</span>
               <input type="number" step="0.01" placeholder="± amount" data-quickadd="${s.id}">
@@ -1556,6 +1594,10 @@ function renderBudget(){
     swrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.savings = STATE.savings.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
     }));
+    swrap.querySelectorAll('[data-manage]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const row = swrap.querySelector(`[data-manage-row="${btn.dataset.manage}"]`);
+      if(row) row.style.display = row.style.display==='none' ? 'flex' : 'none';
+    }));
   }
   renderExpenseDonut();
 }
@@ -1572,15 +1614,28 @@ document.getElementById('add-income-form').addEventListener('submit', e=>{
   f.reset(); saveData(); renderAll();
 });
 document.getElementById('expense-category-select').addEventListener('change', e=>{
-  const customInput = document.getElementById('expense-category-custom');
-  if(e.target.value === '__custom__'){ customInput.style.display = ''; customInput.focus(); }
-  else { customInput.style.display = 'none'; customInput.value = ''; }
+  const select = e.target;
+  const customWrap = document.getElementById('add-category-custom-wrap');
+  if(e.target.value === '__custom__'){
+    select.style.display = 'none';
+    customWrap.style.display = 'flex';
+    document.getElementById('expense-category-custom').focus();
+  }
+});
+document.getElementById('add-category-back-btn').addEventListener('click', ()=>{
+  const select = document.getElementById('expense-category-select');
+  select.style.display = '';
+  select.value = 'Other';
+  document.getElementById('add-category-custom-wrap').style.display = 'none';
+  document.getElementById('expense-category-custom').value = '';
 });
 document.getElementById('add-expense-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
   const rawCategory = f.category.value === '__custom__' ? f.categoryCustom.value : f.category.value;
   STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:normalizeCategory(rawCategory)});
-  f.reset(); document.getElementById('expense-category-custom').style.display = 'none';
+  f.reset();
+  document.getElementById('expense-category-select').style.display = '';
+  document.getElementById('add-category-custom-wrap').style.display = 'none';
   saveData(); renderAll();
 });
 document.getElementById('add-savings-form').addEventListener('submit', e=>{
