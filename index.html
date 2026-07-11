@@ -896,6 +896,7 @@ function totalExpenses(){ return STATE.expenses.reduce((s,x)=>s+Number(x.amount|
 function totalSavingsBalance(){ return STATE.savings.reduce((s,x)=>s+Number(x.balance||0),0); }
 function surplus(){ return totalIncome() - totalMin() - totalExpenses(); }
 function effectiveExtraPayment(){
+  if(!isUnlocked() && STATE.settings.freeExtraPreview!=null) return Math.max(0, Number(STATE.settings.freeExtraPreview)||0);
   const s = surplus();
   if(STATE.settings.paymentMode === 'manual') return Math.max(0, Number(STATE.settings.extraPaymentManual)||0);
   if(s <= 0) return 0;
@@ -1611,8 +1612,7 @@ function renderDashboard(){
     startSnowfall(document.getElementById('snowCanvas'));
     const freeExtraInput = document.getElementById('free-extra-input');
     if(freeExtraInput) freeExtraInput.addEventListener('change', e=>{
-      STATE.settings.extraPaymentManual = Math.max(0, Number(e.target.value)||0);
-      STATE.settings.paymentMode = 'manual';
+      STATE.settings.freeExtraPreview = Math.max(0, Number(e.target.value)||0);
       saveData(); renderAll();
     });
   }
