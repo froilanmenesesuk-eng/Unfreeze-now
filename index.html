@@ -166,10 +166,8 @@
   .rate-change-note{font-size:11.5px; color:var(--slate); margin-top:3px; white-space:nowrap;}
   .link-btn{background:none; border:none; padding:0; color:var(--glacier); font-size:11.5px; text-decoration:underline; cursor:pointer;}
   .link-btn:hover{color:#3E6C90;}
-  .tag{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px;}
-  .tag-subscription{background:var(--violet-soft); color:var(--violet);}
-  .tag-bill{background:var(--slate-soft); color:var(--slate);}
-  .tag-other{background:var(--glacier-soft); color:var(--glacier);}
+  .tag-input{border:1px solid transparent; font-size:12px; font-weight:600; padding:5px 10px; border-radius:999px; text-align:center;}
+  .tag-input:hover, .tag-input:focus{border-color:currentColor;}
 
   .strategy-toggle{display:inline-flex; border:1px solid var(--border); border-radius:999px; padding:3px; background:var(--paper);}
   .strategy-toggle button{border:none; background:transparent; padding:8px 16px; border-radius:999px; font-size:13px; font-weight:600; color:var(--slate);}
@@ -179,9 +177,13 @@
   .field-inline{display:flex; align-items:center; gap:8px; font-size:13.5px; color:var(--slate); font-weight:600;}
   .field-inline input{width:110px; border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 10px; font-family:var(--font-mono); font-size:13.5px; color:var(--ink);}
   .variable-check{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--slate); font-weight:500;}
-  .income-avg-badge{display:inline-flex; flex-direction:column; gap:2px;}
-  .income-avg-badge .avg-value{font-family:var(--font-mono); font-size:13.5px; font-weight:600; color:var(--ink);}
-  .income-avg-badge .avg-label{font-size:10.5px; color:var(--slate); text-transform:uppercase; letter-spacing:.03em;}
+  .savings-controls{display:flex; gap:6px; margin-top:6px;}
+  .savings-controls input{flex:1; min-width:0; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 8px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink);}
+  .goal-progress{margin-top:8px;}
+  .goal-bar{height:6px; background:var(--border); border-radius:999px; overflow:hidden;}
+  .goal-fill{height:100%; background:var(--evergreen); border-radius:999px; transition:width .2s ease;}
+  .goal-label{font-size:11px; color:var(--slate); margin-top:4px; display:block;}
+  .goal-label.complete{color:var(--evergreen); font-weight:600;}
   .log-modal-list{max-height:220px; overflow-y:auto; margin-bottom:12px; border:1px solid var(--border); border-radius:var(--radius-sm);}
   .log-modal-row{display:flex; align-items:center; gap:8px; padding:8px 10px; border-bottom:1px solid var(--border);}
   .log-modal-row:last-child{border-bottom:none;}
@@ -364,11 +366,18 @@
           <form id="add-expense-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="amount" type="number" step="0.01" min="0" placeholder="£ / mo" required>
-            <select name="category">
-              <option value="subscription">Subscription</option>
-              <option value="bill">Bill</option>
-              <option value="other">Other</option>
-            </select>
+            <input name="category" list="expense-category-suggestions" placeholder="Category" value="Other" required>
+            <datalist id="expense-category-suggestions">
+              <option value="Subscription">
+              <option value="Bill">
+              <option value="Rent/Mortgage">
+              <option value="Insurance">
+              <option value="Transport">
+              <option value="Groceries">
+              <option value="Childcare">
+              <option value="Entertainment">
+              <option value="Other">
+            </datalist>
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="expense-table-wrap" class="table-wrap"></div>
@@ -381,6 +390,7 @@
           <form id="add-savings-form" class="inline-form">
             <input name="name" placeholder="Name" required>
             <input name="balance" type="number" step="0.01" min="0" placeholder="Current balance" required>
+            <input name="goal" type="number" step="0.01" min="0" placeholder="Goal (optional)">
             <button class="btn btn-primary" type="submit">Add</button>
           </form>
           <div id="savings-table-wrap" class="table-wrap"></div>
@@ -510,6 +520,7 @@ function fmtMoney(n){
 function fmtMonthYear(date){ return date.toLocaleDateString(undefined,{month:'long', year:'numeric'}); }
 function fmtDateShort(date){ return date.toLocaleDateString(undefined,{day:'numeric', month:'short', year:'numeric'}); }
 function fmtMonthLabel(ym){ const [y,m] = ym.split('-').map(Number); return fmtMonthYear(new Date(y, m-1, 1)); }
+function thisMonthKey(){ const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
 function escAttr(s){ return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function addMonths(date, n){ const d = new Date(date); d.setMonth(d.getMonth()+n); return d; }
 function addDays(date, n){ const d = new Date(date); d.setDate(d.getDate()+n); return d; }
@@ -709,7 +720,7 @@ function openPayslipModal(incomeId){
   const inc = STATE.incomes.find(i=>i.id===incomeId);
   if(!inc) return;
   payslipModalIncomeId = incomeId;
-  document.getElementById('payslip-modal-income-name').textContent = `${inc.source} — currently ${fmtMoney(inc.amount)}/mo`;
+  document.getElementById('payslip-modal-income-name').textContent = `${inc.source} — currently ${fmtMoney(effectiveIncomeAmount(inc))}/mo`;
   document.getElementById('payslip-date-input').value = inc.nextPayslipDate || '';
   document.getElementById('payslip-repeat-input').value = inc.payCycleDays || '';
   document.getElementById('payslip-modal-backdrop').style.display = 'flex';
@@ -863,10 +874,7 @@ function reminderBannersHTML(){
   }
   upcomingPayslipReminders().forEach(inc=>{
     const when = inc.daysUntil < 0 ? `overdue by ${Math.abs(inc.daysUntil)} day${Math.abs(inc.daysUntil)===1?'':'s'}` : inc.daysUntil===0 ? 'today' : `in ${inc.daysUntil} day${inc.daysUntil===1?'':'s'}`;
-    const action = inc.variable
-      ? `<a href="#" onclick="switchView('income'); openIncomeLogModal('${inc.id}'); return false;">Log it</a>`
-      : `<a href="#" onclick="switchView('income'); return false;">Go to Income</a>`;
-    html += `<div class="nudge-banner"><span>Payslip due for ${escAttr(inc.source)} (${when}) — once you know the amount, ${inc.variable?'log it':'update it'}. ${action}</span></div>`;
+    html += `<div class="nudge-banner"><span>Payslip due for ${escAttr(inc.source)} (${when}) — once you know the amount, ${inc.variable?'log it':'update it'}. <a href="#" onclick="switchView('income'); return false;">Go to Income</a></span></div>`;
   });
   if(shouldShowRateReviewNudge()){
     html += `<div class="nudge-banner"><span>It's been a couple of months — worth double-checking your interest rates haven't changed.</span><button type="button" class="nudge-dismiss" id="dismiss-rate-review-btn">Dismiss</button></div>`;
@@ -1039,14 +1047,15 @@ function renderIncome(){
   if(STATE.incomes.length===0){
     iwrap.innerHTML = `<div class="empty-state"><h3>No income yet</h3><p>Add a source to see your monthly cash flow.</p></div>`;
   } else {
+    const thisKey = thisMonthKey();
     iwrap.innerHTML = `<table><thead><tr><th>Source</th><th>£ / mo</th><th></th></tr></thead><tbody>${
       STATE.incomes.map(i=>{
-        const hasLog = i.variable && i.monthlyLog && Object.keys(i.monthlyLog).length>0;
-        const amountCell = (i.variable && hasLog)
-          ? `<div class="income-avg-badge"><span class="avg-value">${fmtMoney(effectiveIncomeAmount(i))}</span><span class="avg-label">3-mo avg</span></div>`
+        const hasAnyLog = i.variable && i.monthlyLog && Object.keys(i.monthlyLog).length>0;
+        const amountCell = i.variable
+          ? `<input class="cell-input" data-field="thismonth" type="number" step="0.01" min="0" placeholder="Log ${fmtMonthLabel(thisKey)}" value="${(i.monthlyLog && i.monthlyLog[thisKey]!=null) ? i.monthlyLog[thisKey] : ''}">`
           : `<input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${i.amount}">`;
         const noteLine = i.variable
-          ? `<button type="button" class="link-btn" data-log="${i.id}">${hasLog ? 'Log this month / view history' : 'Log your first month'}</button> · <button type="button" class="link-btn" data-fixed="${i.id}">Make fixed</button>`
+          ? `${hasAnyLog ? `3-mo avg ${fmtMoney(effectiveIncomeAmount(i))} · ` : ''}<button type="button" class="link-btn" data-log="${i.id}">View history</button> · <button type="button" class="link-btn" data-fixed="${i.id}">Make fixed</button>`
           : `${i.nextPayslipDate
               ? `Next payslip ${fmtDateShort(parseDateOnly(i.nextPayslipDate))} · <button type="button" class="link-btn" data-payslip="${i.id}">edit</button>`
               : `<button type="button" class="link-btn" data-payslip="${i.id}">+ remind me on payday</button>`
@@ -1062,8 +1071,16 @@ function renderIncome(){
       }).join('')}</tbody></table>`;
     iwrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.incomes.find(x=>x.id===id); const field=inp.dataset.field;
-      item[field] = field==='source' ? inp.value : Number(inp.value)||0;
-      if(field==='amount' && item.nextPayslipDate){
+      let isPayUpdate = false;
+      if(field==='thismonth'){
+        if(!item.monthlyLog) item.monthlyLog = {};
+        item.monthlyLog[thisMonthKey()] = Number(inp.value)||0;
+        isPayUpdate = true;
+      } else {
+        item[field] = field==='source' ? inp.value : Number(inp.value)||0;
+        isPayUpdate = (field==='amount');
+      }
+      if(isPayUpdate && item.nextPayslipDate){
         const today = new Date(); today.setHours(0,0,0,0);
         if(daysBetween(today, parseDateOnly(item.nextPayslipDate)) <= 0){
           if(item.payCycleDays){
@@ -1090,15 +1107,25 @@ function renderIncome(){
     }));
     iwrap.querySelectorAll('[data-variable]').forEach(btn=>btn.addEventListener('click', ()=>{
       const item = STATE.incomes.find(x=>x.id===btn.dataset.variable);
-      if(item){ item.variable = true; if(!item.monthlyLog) item.monthlyLog = {}; saveData(); renderAll(); }
+      if(item){
+        item.variable = true;
+        if(!item.monthlyLog) item.monthlyLog = {};
+        if(item.monthlyLog[thisMonthKey()]==null) item.monthlyLog[thisMonthKey()] = item.amount;
+        saveData(); renderAll();
+      }
     }));
   }
   renderIncomeDonut();
 }
 
 const DONUT_PALETTE = ['#4C7EA8','#E8963D','#2F6B4F','#8E7CC3','#C0533E','#7C8B99'];
+function hashColor(str){
+  let hash = 0;
+  for(let i=0;i<str.length;i++){ hash = (hash*31 + str.charCodeAt(i)) | 0; }
+  return DONUT_PALETTE[Math.abs(hash) % DONUT_PALETTE.length];
+}
 const genericDonutInstances = {};
-function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data){
+function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data, colors){
   const wrap = document.getElementById(wrapId);
   if(!wrap) return;
   if(!labels.length || data.every(v=>v<=0)){
@@ -1114,7 +1141,7 @@ function renderGenericDonut(canvasId, wrapId, emptyMsg, labels, data){
   if(genericDonutInstances[canvasId]) genericDonutInstances[canvasId].destroy();
   genericDonutInstances[canvasId] = new Chart(ctx, {
     type:'doughnut',
-    data:{ labels, datasets:[{ data, backgroundColor: labels.map((_,i)=>DONUT_PALETTE[i%DONUT_PALETTE.length]), borderColor:'#fff', borderWidth:2 }] },
+    data:{ labels, datasets:[{ data, backgroundColor: colors || labels.map((_,i)=>DONUT_PALETTE[i%DONUT_PALETTE.length]), borderColor:'#fff', borderWidth:2 }] },
     options:{
       responsive:true, cutout:'62%',
       plugins:{
@@ -1130,9 +1157,9 @@ function renderIncomeDonut(){
 }
 function renderExpenseDonut(){
   const byCategory = {};
-  STATE.expenses.forEach(x=>{ byCategory[x.category] = (byCategory[x.category]||0) + (Number(x.amount)||0); });
-  const labels = Object.keys(byCategory).map(c=>c.charAt(0).toUpperCase()+c.slice(1));
-  renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory));
+  STATE.expenses.forEach(x=>{ const cat=x.category||'Other'; byCategory[cat] = (byCategory[cat]||0) + (Number(x.amount)||0); });
+  const labels = Object.keys(byCategory);
+  renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory), labels.map(hashColor));
 }
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
@@ -1141,16 +1168,16 @@ function renderBudget(){
   if(STATE.expenses.length===0){
     ewrap.innerHTML = `<div class="empty-state"><h3>Nothing tracked</h3><p>Add bills and subscriptions so your budget reflects real life.</p></div>`;
   } else {
-    ewrap.innerHTML = `<table><thead><tr><th>Name</th><th>£ / mo</th><th>Type</th><th></th></tr></thead><tbody>${
-      STATE.expenses.map(x=>`<tr data-id="${x.id}">
+    ewrap.innerHTML = `<table><thead><tr><th>Name</th><th>£ / mo</th><th>Category</th><th></th></tr></thead><tbody>${
+      STATE.expenses.map(x=>{ const c = hashColor(x.category||'Other'); return `<tr data-id="${x.id}">
         <td><input class="cell-input text-cell" data-field="name" value="${escAttr(x.name)}"></td>
         <td><input class="cell-input" data-field="amount" type="number" step="0.01" min="0" value="${x.amount}"></td>
-        <td><span class="tag tag-${x.category}">${x.category}</span></td>
+        <td><input class="cell-input tag-input" data-field="category" list="expense-category-suggestions" value="${escAttr(x.category)}" style="background:${c}22; color:${c};"></td>
         <td><button class="row-delete" data-del="${x.id}">✕</button></td>
-      </tr>`).join('')}</tbody></table>`;
+      </tr>`; }).join('')}</tbody></table>`;
     ewrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.expenses.find(x=>x.id===id); const field=inp.dataset.field;
-      item[field] = field==='name' ? inp.value : Number(inp.value)||0; saveData(); renderAll();
+      item[field] = (field==='name'||field==='category') ? inp.value : Number(inp.value)||0; saveData(); renderAll();
     }));
     ewrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.expenses = STATE.expenses.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
@@ -1162,14 +1189,41 @@ function renderBudget(){
     swrap.innerHTML = `<div class="empty-state"><h3>No savings tracked</h3><p>Add an account to keep your safety net visible.</p></div>`;
   } else {
     swrap.innerHTML = `<table><thead><tr><th>Name</th><th>Balance</th><th></th></tr></thead><tbody>${
-      STATE.savings.map(s=>`<tr data-id="${s.id}">
+      STATE.savings.map(s=>{
+        let goalHtml = '';
+        if(s.goal && s.goal>0){
+          const pct = Math.min(100, Math.round((Number(s.balance)||0)/s.goal*100));
+          const complete = pct>=100;
+          goalHtml = `<div class="goal-progress">
+            <div class="goal-bar"><div class="goal-fill" style="width:${pct}%;"></div></div>
+            <span class="goal-label ${complete?'complete':''}">${complete ? 'Goal reached! 🎉' : `${fmtMoney(s.balance)} of ${fmtMoney(s.goal)} goal (${pct}%)`}</span>
+          </div>`;
+        }
+        return `<tr data-id="${s.id}">
         <td><input class="cell-input text-cell" data-field="name" value="${escAttr(s.name)}"></td>
-        <td><input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${s.balance}"></td>
+        <td>
+          <input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${s.balance}">
+          ${goalHtml}
+          <div class="savings-controls">
+            <input type="number" step="0.01" placeholder="+ contribute" data-quickadd="${s.id}">
+            <input type="number" step="0.01" min="0" placeholder="Goal (optional)" data-goalfield="${s.id}" value="${s.goal||''}">
+          </div>
+        </td>
         <td><button class="row-delete" data-del="${s.id}">✕</button></td>
-      </tr>`).join('')}</tbody></table>`;
-    swrap.querySelectorAll('input').forEach(inp=>inp.addEventListener('change', ()=>{
+      </tr>`;
+      }).join('')}</tbody></table>`;
+    swrap.querySelectorAll('input[data-field]').forEach(inp=>inp.addEventListener('change', ()=>{
       const id=inp.closest('tr').dataset.id; const item=STATE.savings.find(x=>x.id===id); const field=inp.dataset.field;
       item[field] = field==='name' ? inp.value : Number(inp.value)||0; saveData(); renderAll();
+    }));
+    swrap.querySelectorAll('[data-quickadd]').forEach(inp=>inp.addEventListener('change', ()=>{
+      const id=inp.closest('tr').dataset.id; const item=STATE.savings.find(x=>x.id===id);
+      const add = Number(inp.value)||0;
+      if(add!==0){ item.balance = Math.round(((Number(item.balance)||0)+add)*100)/100; saveData(); renderAll(); }
+    }));
+    swrap.querySelectorAll('[data-goalfield]').forEach(inp=>inp.addEventListener('change', ()=>{
+      const id=inp.closest('tr').dataset.id; const item=STATE.savings.find(x=>x.id===id);
+      item.goal = inp.value==='' ? null : Number(inp.value)||0; saveData(); renderAll();
     }));
     swrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
       STATE.savings = STATE.savings.filter(x=>x.id!==btn.dataset.del); saveData(); renderAll();
@@ -1179,17 +1233,22 @@ function renderBudget(){
 }
 document.getElementById('add-income-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.incomes.push({id:uid(), source:f.source.value.trim()||'Untitled', amount:Number(f.amount.value)||0, variable:f.variable.checked, monthlyLog:{}});
+  const isVariable = f.variable.checked;
+  const amt = Number(f.amount.value)||0;
+  STATE.incomes.push({
+    id:uid(), source:f.source.value.trim()||'Untitled', amount:amt, variable:isVariable,
+    monthlyLog: isVariable ? {[thisMonthKey()]: amt} : {}
+  });
   f.reset(); saveData(); renderAll();
 });
 document.getElementById('add-expense-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:f.category.value});
+  STATE.expenses.push({id:uid(), name:f.name.value.trim()||'Untitled', amount:Number(f.amount.value)||0, category:f.category.value.trim()||'Other'});
   f.reset(); saveData(); renderAll();
 });
 document.getElementById('add-savings-form').addEventListener('submit', e=>{
   e.preventDefault(); const f=e.target;
-  STATE.savings.push({id:uid(), name:f.name.value.trim()||'Untitled', balance:Number(f.balance.value)||0});
+  STATE.savings.push({id:uid(), name:f.name.value.trim()||'Untitled', balance:Number(f.balance.value)||0, goal: f.goal.value==='' ? null : Number(f.goal.value)});
   f.reset(); saveData(); renderAll();
 });
 
