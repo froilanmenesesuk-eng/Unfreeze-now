@@ -161,6 +161,9 @@
   .row-delete{background:transparent; border:none; color:var(--slate); font-size:16px; padding:4px 8px; border-radius:var(--radius-sm);}
   .row-delete:hover{color:var(--alert); background:var(--alert-soft);}
   .table-wrap{overflow-x:auto;}
+  .rate-change-note{font-size:11.5px; color:var(--slate); margin-top:3px; white-space:nowrap;}
+  .link-btn{background:none; border:none; padding:0; color:var(--glacier); font-size:11.5px; text-decoration:underline; cursor:pointer;}
+  .link-btn:hover{color:#3E6C90;}
   .tag{display:inline-block; font-size:11px; font-weight:600; padding:2px 8px; border-radius:999px;}
   .tag-subscription{background:var(--violet-soft); color:var(--violet);}
   .tag-bill{background:var(--slate-soft); color:var(--slate);}
@@ -251,6 +254,9 @@
   #restore-status.success{color:var(--evergreen);}
   .verifying-banner{background:var(--glacier-soft); color:var(--glacier); border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:14px;}
   .unlocked-banner{background:var(--evergreen-soft); color:var(--evergreen); border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:14px;}
+  .nudge-banner{background:var(--thaw-soft); color:#8A5A1A; border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
+  .nudge-banner a{color:#8A5A1A; text-decoration:underline;}
+  .nudge-dismiss{background:none; border:none; color:#8A5A1A; font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; flex-shrink:0; padding:0;}
 </style>
 </head>
 <body>
@@ -391,6 +397,29 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="rate-modal-backdrop" style="display:none;">
+  <div class="card modal-card">
+    <div class="section-title">Schedule a rate change</div>
+    <p class="mode-note" style="margin-top:-6px;" id="rate-modal-debt-name"></p>
+    <form id="rate-change-form">
+      <div class="field-inline" style="margin-bottom:12px;">
+        <span style="width:120px;">Effective date</span>
+        <input type="date" id="rate-change-date-input" required>
+      </div>
+      <div class="field-inline" style="margin-bottom:6px;">
+        <span style="width:120px;">New APR %</span>
+        <input type="number" step="0.01" min="0" id="rate-change-apr-input" placeholder="Leave blank if TBD">
+      </div>
+      <p class="mode-note" style="margin-top:0;">Don't know the new rate yet? Leave it blank — the plan will keep using the current rate as a placeholder until you come back and fill it in.</p>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn" id="rate-change-clear-btn">Clear change</button>
+        <button type="button" class="btn" id="rate-change-cancel-btn">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
 /* ==================== DATA LAYER ==================== */
 const LS_KEY = 'unfreeze_planner_v1';
@@ -399,7 +428,7 @@ const CURRENCY_SYMBOLS = {USD:'$', GBP:'£', EUR:'€'};
 function defaultData(){
   return {
     debts:[], incomes:[], expenses:[], savings:[],
-    settings:{ strategy:'avalanche', currency:'GBP', paymentMode:'auto', extraPaymentManual:0, savingsProtectPct:50, unlocked:false }
+    settings:{ strategy:'avalanche', currency:'GBP', paymentMode:'auto', extraPaymentManual:0, savingsProtectPct:50, unlocked:false, lastRateReviewDismissedAt:null }
   };
 }
 function loadData(){
@@ -425,6 +454,14 @@ function fmtMoney(n){
 function fmtMonthYear(date){ return date.toLocaleDateString(undefined,{month:'long', year:'numeric'}); }
 function escAttr(s){ return String(s??'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
 function addMonths(date, n){ const d = new Date(date); d.setMonth(d.getMonth()+n); return d; }
+function monthsBetween(from, to){ return (to.getFullYear()-from.getFullYear())*12 + (to.getMonth()-from.getMonth()); }
+function parseDateOnly(str){ const [y,m,d] = str.split('-').map(Number); return new Date(y, m-1, d); }
+function effectiveAprAt(d, month){
+  if(d._changeMonth!=null && month>=d._changeMonth && d.futureApr!=null && d.futureApr!==''){
+    return Number(d.futureApr)||0;
+  }
+  return Number(d.apr)||0;
+}
 function lerpColor(a,b,t){
   const pa=[1,3,5].map(i=>parseInt(a.substr(i,2),16));
   const pb=[1,3,5].map(i=>parseInt(b.substr(i,2),16));
@@ -554,6 +591,48 @@ document.getElementById('restore-form').addEventListener('submit', async (e)=>{
   submitBtn.disabled = false;
 });
 
+/* ==================== SCHEDULED RATE CHANGE ==================== */
+let rateModalDebtId = null;
+function openRateModal(debtId){
+  const debt = STATE.debts.find(d=>d.id===debtId);
+  if(!debt) return;
+  rateModalDebtId = debtId;
+  document.getElementById('rate-modal-debt-name').textContent = `${debt.name} — currently ${debt.apr}% APR`;
+  document.getElementById('rate-change-date-input').value = debt.futureAprDate || '';
+  document.getElementById('rate-change-apr-input').value = (debt.futureApr!=null) ? debt.futureApr : '';
+  document.getElementById('rate-modal-backdrop').style.display = 'flex';
+}
+function closeRateModal(){
+  document.getElementById('rate-modal-backdrop').style.display = 'none';
+  rateModalDebtId = null;
+}
+document.addEventListener('click', (e)=>{
+  if(e.target.id === 'rate-change-cancel-btn'){ closeRateModal(); return; }
+  if(e.target.id === 'rate-modal-backdrop'){ closeRateModal(); return; }
+  if(e.target.id === 'rate-change-clear-btn'){
+    const debt = STATE.debts.find(d=>d.id===rateModalDebtId);
+    if(debt){ delete debt.futureAprDate; delete debt.futureApr; saveData(); renderAll(); }
+    closeRateModal();
+    return;
+  }
+  if(e.target.id === 'dismiss-rate-review-btn'){
+    STATE.settings.lastRateReviewDismissedAt = new Date().toISOString().slice(0,10);
+    saveData(); renderAll();
+    return;
+  }
+});
+document.getElementById('rate-change-form').addEventListener('submit', (e)=>{
+  e.preventDefault();
+  const debt = STATE.debts.find(d=>d.id===rateModalDebtId);
+  if(!debt) return;
+  const dateVal = document.getElementById('rate-change-date-input').value;
+  const aprVal = document.getElementById('rate-change-apr-input').value;
+  debt.futureAprDate = dateVal || null;
+  debt.futureApr = aprVal==='' ? null : Number(aprVal);
+  saveData(); renderAll();
+  closeRateModal();
+});
+
 /* ==================== BUDGET MATH ==================== */
 function totalIncome(){ return STATE.incomes.reduce((s,i)=>s+Number(i.amount||0),0); }
 function totalMin(){ return STATE.debts.reduce((s,d)=>s+Number(d.minPayment||0),0); }
@@ -573,23 +652,61 @@ function savingsFromSplit(){
   return s * (STATE.settings.savingsProtectPct/100);
 }
 
+/* ==================== REMINDERS ==================== */
+function daysBetween(a, b){ return Math.round((b-a)/86400000); }
+function upcomingTbdRateChanges(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  return STATE.debts.filter(d=>{
+    if(!d.futureAprDate) return false;
+    if(d.futureApr!=null && d.futureApr!=='') return false;
+    return daysBetween(today, parseDateOnly(d.futureAprDate)) <= 7;
+  }).map(d=>({...d, daysUntil: daysBetween(today, parseDateOnly(d.futureAprDate))}));
+}
+function shouldShowRateReviewNudge(){
+  if(STATE.debts.length===0) return false;
+  const last = STATE.settings.lastRateReviewDismissedAt;
+  if(!last) return true;
+  return daysBetween(new Date(last), new Date()) >= 60;
+}
+function reminderBannersHTML(){
+  let html = '';
+  const tbdChanges = upcomingTbdRateChanges();
+  if(tbdChanges.length){
+    const items = tbdChanges.map(d=>{
+      const when = d.daysUntil < 0 ? 'already passed' : d.daysUntil===0 ? 'today' : `in ${d.daysUntil} day${d.daysUntil===1?'':'s'}`;
+      return `${escAttr(d.name)} (${when})`;
+    }).join(', ');
+    html += `<div class="nudge-banner"><span>Rate change coming up for ${items} — do you know the new APR yet? <a href="#" onclick="switchView('debts'); return false;">Update it</a></span></div>`;
+  }
+  if(shouldShowRateReviewNudge()){
+    html += `<div class="nudge-banner"><span>It's been a couple of months — worth double-checking your interest rates haven't changed.</span><button type="button" class="nudge-dismiss" id="dismiss-rate-review-btn">Dismiss</button></div>`;
+  }
+  return html;
+}
+
 /* ==================== PAYOFF ENGINE ==================== */
 function computeSchedule(debtsInput, extraPayment, strategy){
   const totalMinOriginal = debtsInput.reduce((s,d)=>s+Number(d.minPayment||0),0);
   if(debtsInput.length===0) return {months:0, schedule:[], totalInterest:0, order:[]};
-  let debts = debtsInput.map(d=>({...d, remaining: Number(d.balance)||0}));
+  const thisMonth = new Date(); thisMonth.setDate(1);
+  let debts = debtsInput.map(d=>({
+    ...d,
+    remaining: Number(d.balance)||0,
+    _changeMonth: d.futureAprDate ? monthsBetween(thisMonth, parseDateOnly(d.futureAprDate)) : null
+  }));
   const schedule = [];
   let totalInterest = 0, month = 0;
   const maxMonths = 600;
   while(debts.some(d=>d.remaining > 0.01) && month < maxMonths){
     month++;
-    debts.forEach(d=>{ if(d.remaining>0){ const r=(Number(d.apr)||0)/100/12; const i=d.remaining*r; d.remaining+=i; totalInterest+=i; } });
+    debts.forEach(d=>{ if(d.remaining>0){ const r=effectiveAprAt(d, month)/100/12; const i=d.remaining*r; d.remaining+=i; totalInterest+=i; } });
     debts.forEach(d=>{ if(d.remaining>0){ const pay=Math.min(Number(d.minPayment)||0, d.remaining); d.remaining-=pay; } });
     const activeMinSum = debts.filter(d=>d.remaining>0).reduce((s,d)=>s+(Number(d.minPayment)||0),0);
     let extraPool = Number(extraPayment||0) + (totalMinOriginal - activeMinSum);
     let active = debts.filter(d=>d.remaining>0);
-    if(strategy==='avalanche') active.sort((a,b)=>(b.apr-a.apr)||(a.remaining-b.remaining));
-    else active.sort((a,b)=>(a.remaining-b.remaining)||(b.apr-a.apr));
+    active.forEach(d=>{ d._curApr = effectiveAprAt(d, month); });
+    if(strategy==='avalanche') active.sort((a,b)=>(b._curApr-a._curApr)||(a.remaining-b.remaining));
+    else active.sort((a,b)=>(a.remaining-b.remaining)||(b._curApr-a._curApr));
     for(const d of active){ if(extraPool<=0) break; const pay=Math.min(extraPool,d.remaining); d.remaining-=pay; extraPool-=pay; }
     schedule.push({month, totalBalance: debts.reduce((s,d)=>s+Math.max(d.remaining,0),0), interestSoFar: totalInterest});
     if(month>=maxMonths) break;
@@ -694,7 +811,13 @@ function renderDebts(){
     <tr data-id="${d.id}">
       <td><input class="cell-input text-cell" data-field="name" value="${escAttr(d.name)}"></td>
       <td><input class="cell-input" data-field="balance" type="number" step="0.01" min="0" value="${d.balance}"></td>
-      <td><input class="cell-input" data-field="apr" type="number" step="0.01" min="0" value="${d.apr}"></td>
+      <td>
+        <input class="cell-input" data-field="apr" type="number" step="0.01" min="0" value="${d.apr}">
+        <div class="rate-change-note">${d.futureAprDate
+          ? `→ ${(d.futureApr!=null && d.futureApr!=='') ? d.futureApr+'%' : 'TBD'} from ${fmtMonthYear(parseDateOnly(d.futureAprDate))} · <button type="button" class="link-btn" data-schedule="${d.id}">edit</button>`
+          : `<button type="button" class="link-btn" data-schedule="${d.id}">+ schedule change</button>`
+        }</div>
+      </td>
       <td><input class="cell-input" data-field="minPayment" type="number" step="0.01" min="0" value="${d.minPayment}"></td>
       <td><button class="row-delete" data-del="${d.id}" title="Delete">✕</button></td>
     </tr>`).join('');
@@ -706,6 +829,9 @@ function renderDebts(){
   }));
   wrap.querySelectorAll('[data-del]').forEach(btn=>btn.addEventListener('click', ()=>{
     STATE.debts = STATE.debts.filter(d=>d.id!==btn.dataset.del); saveData(); renderAll();
+  }));
+  wrap.querySelectorAll('[data-schedule]').forEach(btn=>btn.addEventListener('click', ()=>{
+    openRateModal(btn.dataset.schedule);
   }));
 }
 document.getElementById('add-debt-form').addEventListener('submit', e=>{
@@ -850,6 +976,7 @@ function renderDashboard(){
     bannerHTML = `<div class="${cls}">${paymentBanner.message}</div>`;
     if(paymentBanner.type !== 'verifying') paymentBanner = null; // show success/error once
   }
+  bannerHTML += reminderBannersHTML();
 
   if(STATE.debts.length===0){
     el.innerHTML = `
