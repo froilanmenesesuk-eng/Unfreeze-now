@@ -117,6 +117,7 @@
 
   .section-title{font-family:var(--font-display); font-size:19px; font-weight:600; margin:0 0 14px;}
   .two-col{display:grid; grid-template-columns:1.4fr 1fr; gap:18px; align-items:start;}
+  .two-col.even{grid-template-columns:1fr 1fr;}
   .three-col{display:grid; grid-template-columns:repeat(3,1fr); gap:18px; align-items:start;}
   @media (max-width:920px){ .two-col{grid-template-columns:1fr;} .three-col{grid-template-columns:1fr;} }
 
@@ -399,7 +400,7 @@
     <section id="view-budget" class="view">
       <div class="locked-wrap" id="budget-locked-wrap">
       <div class="card" id="budget-flow-summary" style="margin-bottom:18px;"></div>
-      <div class="two-col">
+      <div class="two-col even">
         <div class="card">
           <div class="section-title">Expenses &amp; subscriptions <span class="help-tip" data-tip="Track anything that leaves your account regularly. Type any category name — it doesn't have to match a preset list, and Unfreeze groups your list by category automatically, biggest spend first.">?</span></div>
           <div id="expense-summary"></div>
@@ -434,7 +435,7 @@
           </div>
         </div>
         <div class="card">
-          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Click 'Adjust / set goal' on a row to add or subtract money (e.g. 50 or -50) without recalculating the total yourself, or set a Goal to see your progress. The Dashboard's money-split slider only suggests how much to save each month — it doesn't move money for you, so update the balance here once you've actually set it aside.">?</span></div>
+          <div class="section-title">Savings accounts <span class="help-tip" data-tip="Track any pot you are building — emergency fund, house deposit, etc. Click 'Adjust / set goal' on a row to add or subtract money (e.g. 50 or -50) without recalculating the total yourself, or set a Goal to see your progress. The Dashboard's money-split slider only suggests how much to save each month — it doesn't move money for you, so update the balance here once you've actually set it aside. The chart below is weighted by each pot's goal: the solid slice is what you've saved, the faded slice is what's left to reach it. Pots without a goal just show their balance.">?</span></div>
           <div id="savings-summary"></div>
           <form id="add-savings-form" class="inline-form">
             <input name="name" placeholder="Name" required>
@@ -1481,11 +1482,72 @@ function renderExpenseDonut(){
   const colorMap = assignPaletteColors(labels, EXPENSE_PALETTE);
   renderGenericDonut('expenseDonut','expense-donut-wrap','Add expenses to see the breakdown.', labels, Object.values(byCategory), labels.map(l=>colorMap[l]));
 }
+// Unlike the income/expense donuts, this one is weighted by GOAL amount, not
+// just current balance: a pot with a goal gets a slice sized to its goal,
+// split into an "achieved" wedge (solid color) and a "remaining" wedge (a
+// faded tint of the same color). A pot with no goal just shows its balance,
+// since there's nothing to track progress against.
 function renderSavingsDonut(){
-  const labels = STATE.savings.map(s=>s.name||'Untitled');
-  const colorMap = assignPaletteColors(labels, SAVINGS_PALETTE);
-  renderGenericDonut('savingsDonut','savings-donut-wrap','Add savings accounts to see the breakdown.',
-    labels, STATE.savings.map(s=>Number(s.balance)||0), labels.map(l=>colorMap[l]));
+  const wrapId = 'savings-donut-wrap', canvasId = 'savingsDonut';
+  const wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  const showEmpty = ()=>{
+    if(genericDonutInstances[canvasId]){ genericDonutInstances[canvasId].destroy(); delete genericDonutInstances[canvasId]; }
+    wrap.innerHTML = `<p class="donut-empty">Add savings accounts to see the breakdown.</p>`;
+  };
+  if(STATE.savings.length===0){ showEmpty(); return; }
+
+  const names = STATE.savings.map(s=>s.name||'Untitled');
+  const colorMap = assignPaletteColors(names, SAVINGS_PALETTE);
+  const data = [], bgColors = [], sliceLabels = [], sliceMeta = [];
+  STATE.savings.forEach(s=>{
+    const name = s.name || 'Untitled';
+    const color = colorMap[name];
+    const balance = Number(s.balance)||0;
+    const goal = Number(s.goal)||0;
+    if(goal > 0){
+      const achieved = Math.min(balance, goal);
+      const remaining = Math.max(0, goal - balance);
+      data.push(achieved); bgColors.push(color); sliceLabels.push(name);
+      sliceMeta.push({name, type:'achieved', balance, goal});
+      if(remaining > 0){
+        data.push(remaining); bgColors.push(hexToRgba(color, 0.2)); sliceLabels.push(name);
+        sliceMeta.push({name, type:'remaining', goal, remaining});
+      }
+    } else if(balance > 0){
+      data.push(balance); bgColors.push(color); sliceLabels.push(name);
+      sliceMeta.push({name, type:'balance', balance});
+    }
+  });
+  if(data.every(v=>v<=0)){ showEmpty(); return; }
+
+  if(!document.getElementById(canvasId)){
+    wrap.innerHTML = `<canvas id="${canvasId}" height="170"></canvas>`;
+  }
+  const ctx = document.getElementById(canvasId);
+  if(!ctx || typeof Chart==='undefined') return;
+  if(genericDonutInstances[canvasId]) genericDonutInstances[canvasId].destroy();
+  genericDonutInstances[canvasId] = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels: sliceLabels, datasets:[{ data, backgroundColor: bgColors, borderColor:'#fff', borderWidth:2 }] },
+    options:{
+      responsive:true, cutout:'62%',
+      plugins:{
+        legend:{
+          position:'bottom',
+          labels:{ boxWidth:11, font:{family:'Inter', size:11.5},
+            filter:(item)=> !sliceMeta[item.index] || sliceMeta[item.index].type !== 'remaining' }
+        },
+        tooltip:{ callbacks:{ label:(c)=>{
+          const meta = sliceMeta[c.dataIndex];
+          if(!meta) return '';
+          if(meta.type==='achieved') return `${meta.name}: ${fmtMoney(meta.balance)} saved of ${fmtMoney(meta.goal)} goal (${Math.round(meta.balance/meta.goal*100)}%)`;
+          if(meta.type==='remaining') return `${fmtMoney(meta.remaining)} left to reach the ${fmtMoney(meta.goal)} goal`;
+          return `${meta.name}: ${fmtMoney(meta.balance)} saved (no goal set)`;
+        } } }
+      }
+    }
+  });
 }
 
 /* ==================== BUDGET: EXPENSES / SAVINGS ==================== */
