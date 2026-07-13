@@ -53,7 +53,9 @@
 
   .sidebar{width:230px; flex-shrink:0; background:var(--ink); color:#EAF1F6; display:flex; flex-direction:column; padding:28px 18px;}
   .nav-row{display:flex; flex-direction:column;}
-  .brand{font-family:var(--font-display); font-size:25px; font-weight:600; letter-spacing:0.01em; margin-bottom:2px; display:flex; align-items:center; gap:8px;}
+  .brand{font-family:var(--font-display); font-size:25px; font-weight:600; letter-spacing:0.01em; margin-bottom:2px; display:flex; align-items:center; gap:8px; cursor:pointer; width:fit-content;}
+  .brand:hover{opacity:0.82;}
+  .brand:focus-visible{outline:2px solid var(--glacier); outline-offset:3px; border-radius:4px;}
   .brand-dot{width:10px;height:10px;border-radius:50%;background:var(--thaw); display:inline-block;}
   .brand-sub{font-size:12px; color:#8FA3B5; margin-bottom:32px; letter-spacing:0.03em;}
   .nav-btn{display:flex; align-items:center; gap:10px; width:100%; text-align:left; background:transparent; border:none; color:#C4D3DE; padding:11px 12px; border-radius:var(--radius-sm); font-size:14.5px; font-weight:500; margin-bottom:4px; transition:background .15s ease, color .15s ease;}
@@ -80,7 +82,9 @@
   .btn-danger:hover{border-color:var(--alert); color:var(--alert);}
   select.sel{border:1px solid var(--border); background:var(--paper); padding:8px 12px; border-radius:var(--radius-sm); font-size:13.5px; color:var(--ink);}
 
-  .view{display:none;} .view.active{display:block;}
+  .view{display:none;} .view.active{display:block; animation:viewFadeIn 0.22s ease;}
+  @keyframes viewFadeIn{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+  @media (prefers-reduced-motion: reduce){ .view.active{animation:none;} }
 
   .card{background:var(--paper); border:1px solid var(--border); border-radius:var(--radius-lg); padding:22px 24px;}
   .grid-cards{display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:14px; margin-bottom:22px;}
@@ -314,7 +318,7 @@
 <div id="app">
   <aside class="sidebar">
     <div class="sidebar-top">
-      <div class="brand"><span class="brand-dot"></span>Unfreeze</div>
+      <div class="brand" onclick="switchView('dashboard')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('dashboard');}" role="button" tabindex="0"><span class="brand-dot"></span>Unfreeze</div>
       <div class="brand-sub">Debt &amp; budget planner</div>
     </div>
     <nav class="nav-row">
@@ -1279,12 +1283,15 @@ const titles = {
   plan:['Payoff Plan','See exactly when you will be debt-free.'],
   about:['About & Help','What Unfreeze is, how to use it, and your account.']
 };
+const LAST_VIEW_KEY = 'unfreeze_last_view';
 function switchView(view){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+view).classList.add('active');
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.view===view));
   document.getElementById('page-title').textContent = titles[view][0];
   document.getElementById('page-sub').textContent = titles[view][1];
+  localStorage.setItem(LAST_VIEW_KEY, view);
+  window.scrollTo(0, 0);
   renderAll();
 }
 
@@ -2258,7 +2265,12 @@ function renderAll(){
   const planView = document.getElementById('view-plan');
   if(planView.classList.contains('active')) renderPlan();
 }
-renderAll();
+const savedView = localStorage.getItem(LAST_VIEW_KEY);
+if(savedView && titles[savedView]){
+  switchView(savedView);
+} else {
+  renderAll();
+}
 checkForReturningPayment();
 </script>
 </body>
