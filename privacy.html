@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Unfreeze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2838;
+    --frost:#F4F7FA;
+    --paper:#FFFFFF;
+    --glacier:#4C7EA8;
+    --slate:#7C8B99;
+    --border:#E1E7ED;
+    --radius-lg:18px;
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font-body); background:var(--frost); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px; margin:0 auto; padding:48px 24px 80px;}
+  a{color:var(--glacier);}
+  .back-link{display:inline-block; margin-bottom:28px; font-size:13.5px; text-decoration:none; color:var(--slate);}
+  .back-link:hover{color:var(--glacier);}
+  .brand{font-family:var(--font-display); font-size:22px; font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:#E8963D; display:inline-block;}
+  h1{font-family:var(--font-display); font-size:32px; font-weight:600; margin:0 0 6px;}
+  .updated{color:var(--slate); font-size:13px; margin:0 0 36px;}
+  h2{font-family:var(--font-display); font-size:19px; font-weight:600; margin:34px 0 10px;}
+  p{margin:0 0 14px; font-size:15px;}
+  ul{margin:0 0 14px; padding-left:20px;}
+  li{font-size:15px; margin-bottom:6px;}
+  .card{background:var(--paper); border:1px solid var(--border); border-radius:var(--radius-lg); padding:26px 30px; margin-bottom:20px;}
+  .note{background:#FBE8D2; border-radius:10px; padding:14px 16px; font-size:13.5px; color:#8A5A1A;}
+  footer{margin-top:40px; font-size:13px; color:var(--slate); text-align:center;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="/">← Back to Unfreeze</a>
+  <div class="brand"><span class="brand-dot"></span>Unfreeze</div>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: July 2026</p>
+
+  <div class="card">
+    <p>Unfreeze is a debt and budget planning tool. This policy explains what data it collects and why — in short: almost nothing, because almost everything stays on your own device.</p>
+  </div>
+
+  <h2>The short version</h2>
+  <ul>
+    <li>Every debt, income source, expense, and savings goal you enter is stored only in your browser's local storage. It is never sent to, or stored on, any server we control.</li>
+    <li>The only personal data involved is your email address, which Stripe (our payment processor) collects when you pay. We don't run a database of customers.</li>
+    <li>We don't use analytics, tracking cookies, or advertising trackers of any kind.</li>
+  </ul>
+
+  <h2>Your financial data</h2>
+  <p>Everything you type into Unfreeze — debts, income, expenses, savings, settings — is saved with your browser's <code>localStorage</code>, on your own device. It stays there unless you export it yourself (via the Export data button) or clear your browser's storage. We have no access to it, no copy of it, and no way to see it. See our <a href="cookies.html">Cookie Policy</a> for the specific details of what's stored and why.</p>
+
+  <h2>Payment data</h2>
+  <p>When you unlock the full version, payment is handled entirely by <a href="https://stripe.com/privacy" target="_blank" rel="noopener">Stripe</a>, a third-party payment processor. We never see or store your card details — Stripe handles that under its own security and privacy standards.</p>
+  <p>To confirm a purchase or restore access on a new device, our server asks Stripe whether a payment exists for your checkout session or email address. That check happens in real time and isn't logged or stored anywhere by us afterwards. Your purchase email may be saved in your own browser's local storage (so you're reminded which email to use if you switch devices) — again, only on your device, not ours.</p>
+
+  <h2>Technical data</h2>
+  <p>Unfreeze is hosted on Vercel. Like virtually any website, Vercel's infrastructure may log basic technical information (such as IP address and request timestamps) as part of normal server operation. We don't access or use these logs for anything beyond keeping the site running.</p>
+
+  <h2>What we don't do</h2>
+  <ul>
+    <li>We don't use Google Analytics, Meta Pixel, or any similar tracking tool.</li>
+    <li>We don't sell, rent, or share your data with third parties for marketing.</li>
+    <li>We don't build a profile of you or your finances — we couldn't, even if we wanted to, since your financial data never reaches us.</li>
+  </ul>
+
+  <h2>Your rights</h2>
+  <p>Because your financial data lives only on your device, you're already in full control of it: use <strong>Export data</strong> to download a copy at any time, or <strong>Reset</strong> to delete it permanently from that device. For anything related to your payment (held by Stripe) or your purchase email, email us and we'll help.</p>
+
+  <div class="note">This policy covers Unfreeze itself. Stripe's handling of your payment data is governed by <a href="https://stripe.com/privacy" target="_blank" rel="noopener" style="color:#8A5A1A; text-decoration:underline;">Stripe's own privacy policy</a>.</div>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, we'll update the date at the top of this page. Since we don't collect an email list for marketing, we won't be able to notify you directly — check back here if you're curious.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy or your data? Email <a href="mailto:londonurse.store@gmail.com">londonurse.store@gmail.com</a>.</p>
+
+  <footer>Unfreeze — break free from debt, on your terms.<br><a href="cookies.html">Cookie Policy</a> · <a href="terms.html">Terms of Service</a> · <a href="/">Back to the app</a></footer>
+</div>
+</body>
+</html>

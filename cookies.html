@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cookie Policy — Unfreeze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2838;
+    --frost:#F4F7FA;
+    --paper:#FFFFFF;
+    --glacier:#4C7EA8;
+    --slate:#7C8B99;
+    --border:#E1E7ED;
+    --radius-lg:18px;
+    --radius-sm:6px;
+    --font-display:'Fraunces', serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font-body); background:var(--frost); color:var(--ink); line-height:1.6; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:680px; margin:0 auto; padding:48px 24px 80px;}
+  a{color:var(--glacier);}
+  .back-link{display:inline-block; margin-bottom:28px; font-size:13.5px; text-decoration:none; color:var(--slate);}
+  .back-link:hover{color:var(--glacier);}
+  .brand{font-family:var(--font-display); font-size:22px; font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:6px;}
+  .brand-dot{width:9px;height:9px;border-radius:50%;background:#E8963D; display:inline-block;}
+  h1{font-family:var(--font-display); font-size:32px; font-weight:600; margin:0 0 6px;}
+  .updated{color:var(--slate); font-size:13px; margin:0 0 36px;}
+  h2{font-family:var(--font-display); font-size:19px; font-weight:600; margin:34px 0 10px;}
+  p{margin:0 0 14px; font-size:15px;}
+  ul{margin:0 0 14px; padding-left:20px;}
+  li{font-size:15px; margin-bottom:6px;}
+  .card{background:var(--paper); border:1px solid var(--border); border-radius:var(--radius-lg); padding:26px 30px; margin-bottom:20px;}
+  .note{background:#FBE8D2; border-radius:10px; padding:14px 16px; font-size:13.5px; color:#8A5A1A;}
+  footer{margin-top:40px; font-size:13px; color:var(--slate); text-align:center;}
+  table{width:100%; border-collapse:collapse; margin:0 0 14px; font-size:13.5px;}
+  th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--slate); font-weight:600; padding:8px 10px; border-bottom:1px solid var(--border);}
+  td{padding:10px; border-bottom:1px solid var(--border); vertical-align:top;}
+  code{font-family:var(--font-mono); font-size:12.5px; background:var(--frost); padding:2px 5px; border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back-link" href="/">← Back to Unfreeze</a>
+  <div class="brand"><span class="brand-dot"></span>Unfreeze</div>
+  <h1>Cookie Policy</h1>
+  <p class="updated">Last updated: July 2026</p>
+
+  <div class="card">
+    <p><strong>Short version: Unfreeze doesn't use cookies.</strong> It uses your browser's local storage to save your data on your own device, which is what makes the app work at all. Nothing here is used for tracking, advertising, or analytics.</p>
+  </div>
+
+  <h2>What are cookies?</h2>
+  <p>Cookies are small files a website can ask your browser to store, usually to remember who you are across visits or to track behaviour for analytics and advertising. "Local storage" is a similar browser feature, but it's not automatically sent to a server on every request the way cookies are — it just sits in your browser until the site (or you) clears it.</p>
+
+  <h2>Cookies we use</h2>
+  <p>None. Unfreeze's own pages don't set any cookies at all.</p>
+
+  <h2>Local storage we use</h2>
+  <p>These are strictly necessary — the app can't function without them, since they <em>are</em> the app's core feature (saving your data on your device instead of on a server):</p>
+  <table>
+    <thead><tr><th>Name</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>unfreeze_planner_v1</code></td><td>Stores your debts, income, expenses, savings, and settings, so they're there when you come back.</td></tr>
+      <tr><td><code>unfreeze_last_view</code></td><td>Remembers which tab (Dashboard, Debts, Budget, etc.) you were last on.</td></tr>
+    </tbody>
+  </table>
+  <p>Because these are strictly necessary for the service you're using (not for tracking, marketing, or analytics), UK PECR rules don't require us to ask your permission for them — only to tell you about them, which this page does. You can clear them any time via your browser's settings, or with the <strong>Reset</strong> button inside Unfreeze.</p>
+
+  <h2>Third-party resources</h2>
+  <p>Loading any web page involves your browser fetching resources directly from wherever they're hosted. Unfreeze loads a few things from third parties:</p>
+  <ul>
+    <li><strong>Google Fonts</strong> (fonts.googleapis.com, fonts.gstatic.com) — for the typefaces used across the site.</li>
+    <li><strong>jsDelivr</strong> (cdn.jsdelivr.net) — hosts the charting library used for the app's graphs.</li>
+    <li><strong>Stripe</strong> (buy.stripe.com) — only if you click "Unlock," which takes you to Stripe's own checkout page.</li>
+  </ul>
+  <p>These requests can expose basic technical information (like your IP address) to those providers, the same way any request to any server does — this isn't something Unfreeze controls or receives itself. Stripe's checkout page sets its own cookies under its own policy once you're there; see <a href="https://stripe.com/cookies-policy/legal" target="_blank" rel="noopener">Stripe's Cookie Policy</a> for details.</p>
+
+  <h2>How to control this</h2>
+  <p>You're always in control:</p>
+  <ul>
+    <li>Use <strong>Export data</strong> inside Unfreeze to back up what's stored before clearing anything.</li>
+    <li>Use <strong>Reset</strong> inside Unfreeze, or your browser's own "Clear site data" setting, to remove everything Unfreeze has stored.</li>
+    <li>Most browsers let you block local storage entirely for specific sites — note that Unfreeze won't be able to save your data if you do this, since that's the mechanism it relies on.</li>
+  </ul>
+
+  <div class="note">See also the <a href="privacy.html" style="color:#8A5A1A; text-decoration:underline;">Privacy Policy</a> for how your data is handled more broadly, and Stripe's own policies for anything that happens on their checkout page.</div>
+
+  <h2>Changes to this policy</h2>
+  <p>If this policy changes, we'll update the date at the top of this page.</p>
+
+  <h2>Contact</h2>
+  <p>Questions about cookies or local storage: <a href="mailto:londonurse.store@gmail.com">londonurse.store@gmail.com</a>.</p>
+
+  <footer>Unfreeze — break free from debt, on your terms.<br><a href="privacy.html">Privacy Policy</a> · <a href="terms.html">Terms of Service</a> · <a href="/">Back to the app</a></footer>
+</div>
+</body>
+</html>
