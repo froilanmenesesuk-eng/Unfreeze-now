@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Unfreeze — Debt Payoff & Budget Planner</title>
-<meta name="description" content="See exactly when you'll be debt-free. Compare Avalanche vs. Snowball payoff strategies and track your budget — free to try, £8 once, no subscription. Your data never leaves your device.">
+<title>Debt Payoff Calculator & Budget Planner | Unfreeze</title>
+<meta name="description" content="See exactly when you'll be debt-free. Compare Avalanche vs. Snowball, track your budget — free to try, £8 once. Your data stays on your device.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -303,6 +303,11 @@
   .nudge-banner{background:var(--thaw-soft); color:#8A5A1A; border-radius:var(--radius-sm); padding:10px 16px; font-size:13.5px; font-weight:600; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;}
   .nudge-banner a{color:#8A5A1A; text-decoration:underline;}
   .nudge-dismiss{background:none; border:none; color:#8A5A1A; font-size:12px; font-weight:700; text-decoration:underline; cursor:pointer; flex-shrink:0; padding:0;}
+  .cookie-notice{position:fixed; left:16px; right:16px; bottom:16px; z-index:800; max-width:640px; margin:0 auto; background:var(--ink); color:#EAF1F6; border-radius:var(--radius-md); padding:16px 18px; box-shadow:0 10px 32px rgba(27,40,56,0.3); display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+  .cookie-notice p{margin:0; font-size:13px; line-height:1.5; flex:1; min-width:220px;}
+  .cookie-notice a{color:#fff; text-decoration:underline;}
+  .cookie-notice .btn{flex-shrink:0;}
+  @media (max-width:520px){ .cookie-notice{flex-direction:column; align-items:stretch; text-align:center;} }
   .snapshot-card{margin-bottom:18px;}
   .snapshot-message{display:flex; align-items:flex-start; gap:10px; margin-bottom:14px; padding-bottom:14px; border-bottom:1px solid var(--border);}
   .snapshot-icon{font-size:18px; line-height:1.4;}
@@ -488,12 +493,12 @@
         <div class="section-title">Contact &amp; feedback</div>
         <p class="about-copy">Found a bug, have a feature idea, or just want to say hello? Unfreeze is built and run by one person — every message gets read.</p>
         <a class="unlock-btn" style="display:inline-block;" href="mailto:londonurse.store@gmail.com?subject=Unfreeze%20feedback">Email londonurse.store@gmail.com</a>
-        <p class="mode-note">See also: <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a></p>
+        <p class="mode-note">See also: <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="cookies.html" target="_blank" rel="noopener">Cookie Policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a></p>
       </div>
     </section>
 
     <footer class="credit">Unfreeze — break free from debt, on your terms.<br>
-      <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:londonurse.store@gmail.com">Contact</a>
+      <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="cookies.html" target="_blank" rel="noopener">Cookies</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:londonurse.store@gmail.com">Contact</a>
     </footer>
   </main>
 </div>
@@ -579,6 +584,11 @@
 </div>
 
 <div id="help-tip-popover"></div>
+
+<div id="cookie-notice" class="cookie-notice" style="display:none;">
+  <p>Unfreeze doesn't use cookies or tracking of any kind. Your budget data is saved only in this browser's local storage, so it's here when you come back. <a href="cookies.html" target="_blank" rel="noopener">Learn more</a></p>
+  <button type="button" class="btn btn-primary" id="cookie-notice-dismiss">Got it</button>
+</div>
 
 <script>
 /* ==================== DATA LAYER ==================== */
@@ -1304,6 +1314,21 @@ function switchView(view){
   window.scrollTo(0, 0);
   renderAll();
 }
+
+/* ==================== COOKIE NOTICE ==================== */
+const COOKIE_NOTICE_KEY = 'unfreeze_cookie_notice_dismissed';
+(function initCookieNotice(){
+  const notice = document.getElementById('cookie-notice');
+  if(!notice) return;
+  if(!localStorage.getItem(COOKIE_NOTICE_KEY)){
+    notice.style.display = 'flex';
+  }
+  const dismissBtn = document.getElementById('cookie-notice-dismiss');
+  if(dismissBtn) dismissBtn.addEventListener('click', ()=>{
+    localStorage.setItem(COOKIE_NOTICE_KEY, '1');
+    notice.style.display = 'none';
+  });
+})();
 
 /* ==================== DEBTS ==================== */
 function renderDebts(){
