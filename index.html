@@ -478,13 +478,22 @@
         <p class="mode-note">Free to try: up to 2 debts and 1 income source, with your real debt-free date and extra-payment preview. Unlock for £8 to add unlimited debts and income, plus the full Budget tab and Payoff Plan.</p>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-bottom:18px;">
         <div class="section-title">Your account</div>
         <div id="about-account-info"></div>
       </div>
+
+      <div class="card">
+        <div class="section-title">Contact &amp; feedback</div>
+        <p class="about-copy">Found a bug, have a feature idea, or just want to say hello? Unfreeze is built and run by one person — every message gets read.</p>
+        <a class="unlock-btn" style="display:inline-block;" href="mailto:londonurse.store@gmail.com?subject=Unfreeze%20feedback">Email londonurse.store@gmail.com</a>
+        <p class="mode-note">See also: <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a></p>
+      </div>
     </section>
 
-    <footer class="credit">Unfreeze — break free from debt, on your terms.</footer>
+    <footer class="credit">Unfreeze — break free from debt, on your terms.<br>
+      <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a> · <a href="mailto:londonurse.store@gmail.com">Contact</a>
+    </footer>
   </main>
 </div>
 
@@ -748,11 +757,11 @@ async function checkForReturningPayment(){
       saveData();
       paymentBanner = {type:'success', message:'Payment confirmed — full access unlocked on this device.'};
     } else {
-      paymentBanner = {type:'error', message:"We could not confirm this payment yet. If you were charged, wait a moment and refresh, or contact support with your receipt."};
+      paymentBanner = {type:'error', message:'We could not confirm this payment yet. If you were charged, wait a moment and refresh, or <a href="mailto:londonurse.store@gmail.com?subject=Unfreeze%20payment%20issue">email us your receipt</a>.'};
     }
   }catch(err){
     console.error(err);
-    paymentBanner = {type:'error', message:'Could not reach the payment verification service. If you were charged, refresh in a moment.'};
+    paymentBanner = {type:'error', message:'Could not reach the payment verification service. If you were charged, refresh in a moment, or <a href="mailto:londonurse.store@gmail.com?subject=Unfreeze%20payment%20issue">email us your receipt</a>.'};
   }
   // clean the URL so refreshing doesn't re-trigger verification
   window.history.replaceState({}, document.title, window.location.pathname);
